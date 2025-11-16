@@ -6,7 +6,6 @@ import {
   BuildingOfficeIcon,
   CogIcon,
   DocumentTextIcon,
-  ClipboardDocumentListIcon,
   ArrowTrendingUpIcon,
 } from "@heroicons/react/24/outline";
 import { StatCardSkeleton } from "@/components/Skeletons";
@@ -15,9 +14,6 @@ import {
   Bar,
   LineChart,
   Line,
-  PieChart,
-  Pie,
-  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -25,20 +21,26 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import {
-  customerService,
-  companyService,
-  companyFormService,
-  engineService,
-  formRecordService,
-} from "@/services";
+import apiClient from "@/lib/axios";
+import toast from "react-hot-toast";
+
+interface DatabaseCounts {
+  forms: number;
+  customer: number;
+  engine: number;
+  companies: number;
+}
+
+interface ApiResponse {
+  status: string;
+  data: DatabaseCounts;
+}
 
 interface DashboardStats {
   totalCustomers: number;
   totalProducts: number;
   totalCompanies: number;
   totalForms: number;
-  totalRecords: number;
 }
 
 export default function OverviewPage() {
@@ -48,10 +50,8 @@ export default function OverviewPage() {
     totalProducts: 0,
     totalCompanies: 0,
     totalForms: 0,
-    totalRecords: 0,
   });
   const [monthlyData, setMonthlyData] = useState<any[]>([]);
-  const [formTypeData, setFormTypeData] = useState<any[]>([]);
 
   useEffect(() => {
     loadDashboardData();
@@ -61,69 +61,32 @@ export default function OverviewPage() {
     try {
       setIsLoading(true);
 
-      // Fetch all data in parallel
-      const [customersRes, companiesRes, formsRes, enginesRes, recordsRes] =
-        await Promise.all([
-          customerService.getAll().catch(() => ({ data: [] })),
-          companyService.getAll().catch(() => ({ data: [] })),
-          companyFormService.getAll().catch(() => ({ data: [] })),
-          engineService.getAll().catch(() => ({ data: [] })),
-          formRecordService.getAll().catch(() => ({ data: [] })),
-        ]);
-
-      const customers = Array.isArray(customersRes.data)
-        ? customersRes.data
-        : [];
-      const companies = Array.isArray(companiesRes.data)
-        ? companiesRes.data
-        : [];
-      const forms = Array.isArray(formsRes.data)
-        ? formsRes.data
-        : [];
-      const engines = Array.isArray(enginesRes.data)
-        ? enginesRes.data
-        : [];
-      const records = Array.isArray(recordsRes.data)
-        ? recordsRes.data
-        : [];
+      // Fetch counts from backend
+      const response = await apiClient.get<ApiResponse>("/database/counts");
+      const counts = response.data.data;
 
       setStats({
-        totalCustomers: customers.length,
-        totalProducts: engines.length,
-        totalCompanies: companies.length,
-        totalForms: forms.length,
-        totalRecords: records.length,
+        totalCustomers: counts.customer || 0,
+        totalProducts: counts.engine || 0,
+        totalCompanies: counts.companies || 0,
+        totalForms: counts.forms || 0,
       });
 
       // Generate monthly data for the last 6 months
       const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun"];
       const monthlyStats = months.map((month, index) => ({
         month,
-        records: Math.floor(Math.random() * 20) + 5,
+        forms: Math.floor(Math.random() * 20) + 5,
         customers: Math.floor(Math.random() * 15) + 3,
       }));
       setMonthlyData(monthlyStats);
-
-      // Generate form type distribution
-      const formTypes: Record<string, number> = {};
-      forms.forEach((form: any) => {
-        const type = form.formType || "Other";
-        formTypes[type] = (formTypes[type] || 0) + 1;
-      });
-
-      const typeData = Object.entries(formTypes).map(([name, value]) => ({
-        name,
-        value,
-      }));
-      setFormTypeData(typeData);
     } catch (error) {
       console.error("Error loading dashboard data:", error);
+      toast.error("Failed to load dashboard statistics");
     } finally {
       setIsLoading(false);
     }
   };
-
-  const COLORS = ["#2B4C7E", "#4A6FA5", "#3B82F6", "#60A5FA", "#93C5FD"];
 
   return (
     <div className="space-y-6">
@@ -136,10 +99,9 @@ export default function OverviewPage() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {isLoading ? (
           <>
-            <StatCardSkeleton />
             <StatCardSkeleton />
             <StatCardSkeleton />
             <StatCardSkeleton />
@@ -164,7 +126,7 @@ export default function OverviewPage() {
             <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500 hover:shadow-lg transition-shadow">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600 font-medium">Products</p>
+                  <p className="text-sm text-gray-600 font-medium">Engines</p>
                   <p className="text-3xl font-bold text-gray-900 mt-2">
                     {stats.totalProducts}
                   </p>
@@ -204,30 +166,16 @@ export default function OverviewPage() {
                 </div>
               </div>
             </div>
-
-            <div className="bg-white rounded-lg shadow-md p-6 border-l-4 border-orange-500 hover:shadow-lg transition-shadow">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600 font-medium">Records</p>
-                  <p className="text-3xl font-bold text-gray-900 mt-2">
-                    {stats.totalRecords}
-                  </p>
-                </div>
-                <div className="bg-orange-100 p-3 rounded-full">
-                  <ClipboardDocumentListIcon className="h-8 w-8 text-orange-600" />
-                </div>
-              </div>
-            </div>
           </>
         )}
       </div>
 
       {/* Charts Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6">
         {/* Monthly Activity Chart */}
         <div className="bg-white rounded-lg shadow-md p-6">
           <h2 className="text-lg font-bold text-gray-900 mb-4">
-            Monthly Activity
+            Monthly Activity Trend
           </h2>
           {isLoading ? (
             <div className="h-64 bg-gray-100 animate-pulse rounded"></div>
@@ -241,10 +189,10 @@ export default function OverviewPage() {
                 <Legend />
                 <Line
                   type="monotone"
-                  dataKey="records"
+                  dataKey="forms"
                   stroke="#2B4C7E"
                   strokeWidth={2}
-                  name="Form Records"
+                  name="Forms Created"
                 />
                 <Line
                   type="monotone"
@@ -255,45 +203,6 @@ export default function OverviewPage() {
                 />
               </LineChart>
             </ResponsiveContainer>
-          )}
-        </div>
-
-        {/* Form Types Distribution */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-lg font-bold text-gray-900 mb-4">
-            Form Types Distribution
-          </h2>
-          {isLoading ? (
-            <div className="h-64 bg-gray-100 animate-pulse rounded"></div>
-          ) : formTypeData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={formTypeData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) =>
-                    `${name}: ${((percent || 0) * 100).toFixed(0)}%`
-                  }
-                  outerRadius={100}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {formTypeData.map((entry, index) => (
-                    <Cell
-                      key={`cell-${index}`}
-                      fill={COLORS[index % COLORS.length]}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-64 flex items-center justify-center text-gray-500">
-              No form templates available
-            </div>
           )}
         </div>
       </div>
@@ -315,7 +224,7 @@ export default function OverviewPage() {
                   color: "#3B82F6",
                 },
                 {
-                  name: "Products",
+                  name: "Engines",
                   count: stats.totalProducts,
                   color: "#10B981",
                 },
@@ -325,14 +234,9 @@ export default function OverviewPage() {
                   color: "#8B5CF6",
                 },
                 {
-                  name: "Templates",
+                  name: "Form Templates",
                   count: stats.totalForms,
                   color: "#EF4444",
-                },
-                {
-                  name: "Records",
-                  count: stats.totalRecords,
-                  color: "#F59E0B",
                 },
               ]}
             >
