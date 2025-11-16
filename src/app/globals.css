@@ -32,7 +32,9 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/* Optional Dark Mode Support */
+/* Force Light Mode - Disable Dark Mode */
+/* Commented out to ensure consistent light theme across all devices */
+/*
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
@@ -43,14 +45,30 @@
     --foreground-light: #808080;
   }
 }
+*/
 
-/* Base Styles */
+/* Base Styles - Enforced Light Mode */
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: #ffffff !important;
+  color: #2C2C2C !important;
   font-family: var(--font-geist-sans), Inter, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Force all text elements to use consistent colors */
+* {
+  color-scheme: light !important;
+}
+
+/* Ensure all text defaults to dark gray */
+p, span, div, h1, h2, h3, h4, h5, h6, label, a {
+  color: inherit;
+}
+
+/* Override any potential dark mode styles */
+html {
+  color-scheme: light !important;
 }
 
 /* Custom Focus Styles */
@@ -67,6 +85,21 @@ input[type="number"],
 textarea,
 select {
   transition: all 0.2s ease-in-out;
+  color: #2C2C2C !important;
+  background-color: #ffffff;
+}
+
+/* Ensure placeholder text is visible and consistent */
+input::placeholder,
+textarea::placeholder {
+  color: #9CA3AF !important;
+  opacity: 1;
+}
+
+/* Ensure select options have consistent colors */
+select option {
+  color: #2C2C2C !important;
+  background-color: #ffffff;
 }
 
 input[type="text"]:focus,
@@ -101,6 +134,21 @@ select:focus {
 button {
   transition: all 0.2s ease-in-out;
   cursor: pointer;
+}
+
+/* Ensure table text is consistent */
+table, th, td {
+  color: #2C2C2C;
+}
+
+/* Ensure all headings have consistent colors */
+h1, h2, h3, h4, h5, h6 {
+  color: #1F2937;
+}
+
+/* Ensure links have consistent colors */
+a {
+  color: #2B4C7E;
 }
 
 /* Custom Animations */
