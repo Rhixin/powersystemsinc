@@ -14,6 +14,7 @@ import {
 import { CompanyCardsGridSkeleton } from "./Skeletons";
 import CustomSelect from "./CustomSelect";
 import ConfirmationModal from "./ConfirmationModal";
+import Image from "next/image";
 
 interface EnginesProps {
   companyId?: string;
@@ -105,6 +106,7 @@ export default function Engines({
   });
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [loadingImages, setLoadingImages] = useState<Record<string, boolean>>({});
 
   const handleOpenCreateModal = () => {
     setModalMode("create");
@@ -429,13 +431,41 @@ export default function Engines({
               </div>
 
               {/* Engine Image */}
-              <div className="w-full h-48 bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center relative">
+              <div className="w-full h-48 bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center relative overflow-hidden">
                 {engine.imageUrl ? (
-                  <img
-                    src={engine.imageUrl}
-                    alt={engine.model}
-                    className="w-full h-full object-cover"
-                  />
+                  <>
+                    {/* Skeleton Loader */}
+                    {loadingImages[engine.id] && (
+                      <div className="absolute inset-0 w-full h-full bg-gray-200 animate-pulse z-20" />
+                    )}
+
+                    {/* Blurred Background */}
+                    <div
+                      className="absolute inset-0 w-full h-full"
+                      style={{
+                        backgroundImage: `url(${engine.imageUrl})`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                        filter: 'blur(20px)',
+                        transform: 'scale(1.1)',
+                      }}
+                    />
+
+                    {/* Actual Image */}
+                    <Image
+                      src={engine.imageUrl}
+                      alt={engine.model}
+                      fill
+                      className="relative object-contain z-10"
+                      onLoadingComplete={() => {
+                        setLoadingImages(prev => ({ ...prev, [engine.id]: false }));
+                      }}
+                      onLoadStart={() => {
+                        setLoadingImages(prev => ({ ...prev, [engine.id]: true }));
+                      }}
+                      unoptimized
+                    />
+                  </>
                 ) : (
                   <CogIcon className="h-24 w-24 text-white opacity-50" />
                 )}

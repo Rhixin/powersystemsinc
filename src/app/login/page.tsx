@@ -725,7 +725,7 @@ export default function AuthPage() {
                     />
                   </div>
                   <h2 className="text-5xl font-bold text-white mb-4 tracking-wider drop-shadow-2xl">
-                    Power Systems Inc
+                    Power Systems Inc.
                   </h2>
                 </div>
               </div>

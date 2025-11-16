@@ -32,6 +32,11 @@ export const metadata: Metadata = {
     "electrical services",
   ],
   authors: [{ name: "Power Systems Inc" }],
+  icons: {
+    icon: "/images/powersystemslogov1.jpg",
+    shortcut: "/images/powersystemslogov1.jpg",
+    apple: "/images/powersystemslogov1.jpg",
+  },
   openGraph: {
     title: "Power Systems Inc - Energy Solutions & Management",
     description: "Comprehensive energy solutions and management services",

@@ -13,6 +13,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { CompanyCardsGridSkeleton } from "./Skeletons";
 import ConfirmationModal from "./ConfirmationModal";
+import Image from "next/image";
 
 interface CompaniesProps {
   companies: Company[];
@@ -36,6 +37,7 @@ export default function Companies({
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [loadingImages, setLoadingImages] = useState<Record<string, boolean>>({});
 
   // Confirmation modal states
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -248,6 +250,11 @@ export default function Companies({
               <div className="w-full h-40 sm:h-48 bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center relative overflow-hidden">
                 {company.imageUrl ? (
                   <>
+                    {/* Skeleton Loader */}
+                    {loadingImages[company.id] && (
+                      <div className="absolute inset-0 w-full h-full bg-gray-200 animate-pulse z-20" />
+                    )}
+
                     {/* Blurred Background */}
                     <div
                       className="absolute inset-0 w-full h-full"
@@ -259,11 +266,20 @@ export default function Companies({
                         transform: 'scale(1.1)',
                       }}
                     />
+
                     {/* Actual Image */}
-                    <img
+                    <Image
                       src={company.imageUrl}
                       alt={company.name}
-                      className="relative w-full h-full object-contain z-10"
+                      fill
+                      className="relative object-contain z-10"
+                      onLoadingComplete={() => {
+                        setLoadingImages(prev => ({ ...prev, [company.id]: false }));
+                      }}
+                      onLoadStart={() => {
+                        setLoadingImages(prev => ({ ...prev, [company.id]: true }));
+                      }}
+                      unoptimized
                     />
                   </>
                 ) : (
