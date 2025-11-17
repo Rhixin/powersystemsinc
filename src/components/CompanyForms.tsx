@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CompanyForm, DynamicField, FormFieldType, FormSection } from "@/types";
+import { CompanyForm, DynamicField, FormFieldType, FormSection, CustomSection } from "@/types";
 import {
   companyFormService,
   companyService,
@@ -46,14 +46,10 @@ export default function CompanyForms({ forms, setForms }: CompanyFormsProps) {
     engineId: "",
   });
   const [dynamicFields, setDynamicFields] = useState<DynamicField[]>([]);
-  const [showAddFieldMenu, setShowAddFieldMenu] = useState<Record<FormSection, boolean>>({
-    basicInformation: false,
-    engineInformation: false,
-    serviceDetails: false,
-    warrantyCoverage: false,
-    servicesSummary: false,
-    signatures: false,
-  });
+  const [customSections, setCustomSections] = useState<CustomSection[]>([]);
+  const [showAddFieldMenu, setShowAddFieldMenu] = useState<Record<string, boolean>>({});
+  const [showAddSectionModal, setShowAddSectionModal] = useState(false);
+  const [newSectionData, setNewSectionData] = useState({ name: "", label: "" });
 
   // Load companies and customers on mount
   useEffect(() => {
@@ -66,14 +62,7 @@ export default function CompanyForms({ forms, setForms }: CompanyFormsProps) {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
       if (!target.closest('.add-field-menu-container')) {
-        setShowAddFieldMenu({
-          basicInformation: false,
-          engineInformation: false,
-          serviceDetails: false,
-          warrantyCoverage: false,
-          servicesSummary: false,
-          signatures: false,
-        });
+        setShowAddFieldMenu({});
       }
     };
 
@@ -137,14 +126,17 @@ export default function CompanyForms({ forms, setForms }: CompanyFormsProps) {
     "file",
   ];
 
-  const sections: { value: FormSection; label: string }[] = [
-    { value: "basicInformation", label: "Basic Information" },
-    { value: "engineInformation", label: "Engine Information" },
-    { value: "serviceDetails", label: "Service Details" },
-    { value: "warrantyCoverage", label: "Warranty Coverage" },
-    { value: "servicesSummary", label: "Services Summary" },
-    { value: "signatures", label: "Signatures" },
+  const defaultSections: CustomSection[] = [
+    { id: "basicInformation", name: "basicInformation", label: "Basic Information", order: 0 },
+    { id: "engineInformation", name: "engineInformation", label: "Engine Information", order: 1 },
+    { id: "serviceDetails", name: "serviceDetails", label: "Service Details", order: 2 },
+    { id: "warrantyCoverage", name: "warrantyCoverage", label: "Warranty Coverage", order: 3 },
+    { id: "servicesSummary", name: "servicesSummary", label: "Services Summary", order: 4 },
+    { id: "signatures", name: "signatures", label: "Signatures", order: 5 },
   ];
+
+  // Get all sections (default + custom)
+  const allSections = [...defaultSections, ...customSections].sort((a, b) => a.order - b.order);
 
   const handleOpenCreateModal = () => {
     setModalMode("create");
@@ -156,6 +148,7 @@ export default function CompanyForms({ forms, setForms }: CompanyFormsProps) {
       engineId: "",
     });
     setDynamicFields([]);
+    setCustomSections([]);
     setShowModal(true);
   };
 
@@ -169,6 +162,13 @@ export default function CompanyForms({ forms, setForms }: CompanyFormsProps) {
       customerId: form.customerId || "",
       engineId: form.engineId || "",
     });
+
+    // Load custom sections
+    if (form.sections && Array.isArray(form.sections)) {
+      setCustomSections(form.sections);
+    } else {
+      setCustomSections([]);
+    }
 
     // Convert backend fields format to frontend dynamicFields format
     if (form.fields && Array.isArray(form.fields)) {
@@ -184,6 +184,7 @@ export default function CompanyForms({ forms, setForms }: CompanyFormsProps) {
           defaultValue: field.defaultValue,
           validation: field.validation,
           order: index,
+          section: field.section,
         })
       );
       setDynamicFields(convertedFields);
@@ -275,6 +276,55 @@ export default function CompanyForms({ forms, setForms }: CompanyFormsProps) {
     setDynamicFields(currentFields.filter((field) => field.id !== id));
   };
 
+  const handleAddSection = () => {
+    if (!newSectionData.name || !newSectionData.label) {
+      toast.error("Please provide both field name and label for the section");
+      return;
+    }
+
+    // Validate field name (should be camelCase, no spaces)
+    if (!/^[a-zA-Z][a-zA-Z0-9]*$/.test(newSectionData.name)) {
+      toast.error("Field name must be camelCase with no spaces or special characters");
+      return;
+    }
+
+    // Check if section name already exists
+    const exists = allSections.some(s => s.name === newSectionData.name);
+    if (exists) {
+      toast.error("A section with this name already exists");
+      return;
+    }
+
+    const newSection: CustomSection = {
+      id: `custom-${Date.now()}`,
+      name: newSectionData.name,
+      label: newSectionData.label,
+      order: allSections.length,
+    };
+
+    setCustomSections([...customSections, newSection]);
+    setNewSectionData({ name: "", label: "" });
+    setShowAddSectionModal(false);
+    toast.success("Section added successfully!");
+  };
+
+  const handleRemoveSection = (sectionId: string) => {
+    // Don't allow removing default sections
+    const section = customSections.find(s => s.id === sectionId);
+    if (!section) {
+      toast.error("Cannot remove default sections");
+      return;
+    }
+
+    // Remove the section
+    setCustomSections(customSections.filter(s => s.id !== sectionId));
+
+    // Remove all fields in this section
+    setDynamicFields(dynamicFields.filter(f => f.section !== section.name));
+
+    toast.success("Section removed successfully!");
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (modalMode === "create") {
@@ -307,6 +357,7 @@ export default function CompanyForms({ forms, setForms }: CompanyFormsProps) {
         customerId: formData.customerId || undefined,
         engineId: formData.engineId || undefined,
         fields: mappedFields,
+        sections: customSections,
       };
       console.log("Creating form with data:", submitData);
       console.log("Mapped fields count:", mappedFields.length);
@@ -349,6 +400,7 @@ export default function CompanyForms({ forms, setForms }: CompanyFormsProps) {
         customerId: formData.customerId || undefined,
         engineId: formData.engineId || undefined,
         fields: mappedFields,
+        sections: customSections,
       };
       const loadingToast = toast.loading("Updating form...");
       await companyFormService.update(selectedForm.id, submitData);
@@ -591,60 +643,87 @@ export default function CompanyForms({ forms, setForms }: CompanyFormsProps) {
 
               {/* Dynamic Fields */}
               <div>
-                <h4 className="text-lg font-semibold text-gray-900 mb-4">
-                  Form Fields
-                </h4>
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-lg font-semibold text-gray-900">
+                    Form Fields
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddSectionModal(true)}
+                    className="flex items-center space-x-2 px-3 py-2 text-white rounded-lg hover:opacity-90 transition-colors text-sm"
+                    style={{ backgroundColor: "#2B4C7E" }}
+                  >
+                    <PlusIcon className="h-4 w-4" />
+                    <span>Add Section</span>
+                  </button>
+                </div>
 
                 <div className="space-y-6">
-                  {sections.map((section) => {
+                  {allSections.map((section) => {
                     const sectionFields = dynamicFields.filter(
-                      (field) => (field.section || "basicInformation") === section.value
+                      (field) => (field.section || "basicInformation") === section.name
                     );
+                    const isCustomSection = customSections.some(s => s.id === section.id);
 
                     return (
-                      <div key={section.value} className="border-2 border-gray-200 rounded-lg p-4 bg-white">
+                      <div key={section.id} className="border-2 border-gray-200 rounded-lg p-4 bg-white">
                         <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-300">
                           <h5 className="text-md font-semibold text-gray-800">
                             {section.label}
-                          </h5>
-                          <div className="relative add-field-menu-container">
-                            <button
-                              type="button"
-                              onClick={() => setShowAddFieldMenu({ ...showAddFieldMenu, [section.value]: !showAddFieldMenu[section.value] })}
-                              className="flex items-center space-x-2 px-3 py-2 text-white rounded-lg hover:opacity-90 transition-colors text-sm"
-                              style={{ backgroundColor: "#2B4C7E" }}
-                            >
-                              <PlusIcon className="h-4 w-4" />
-                              <span>Add Field</span>
-                            </button>
-
-                            {showAddFieldMenu[section.value] && (
-                              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-20">
-                                <div className="py-1">
-                                  <button
-                                    type="button"
-                                    onClick={() => handleAddField(section.value)}
-                                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                                  >
-                                    Normal Field
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleAddCustomerFields(section.value)}
-                                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                                  >
-                                    Customer Fields
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleAddEngineFields(section.value)}
-                                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
-                                  >
-                                    Engine Fields
-                                  </button>
-                                </div>
-                              </div>
+                            {isCustomSection && (
+                              <span className="ml-2 text-xs text-gray-500">(Custom)</span>
                             )}
+                          </h5>
+                          <div className="flex items-center space-x-2">
+                            {isCustomSection && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveSection(section.id)}
+                                className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                                title="Remove Section"
+                              >
+                                <TrashIcon className="h-4 w-4" />
+                              </button>
+                            )}
+                            <div className="relative add-field-menu-container">
+                              <button
+                                type="button"
+                                onClick={() => setShowAddFieldMenu({ ...showAddFieldMenu, [section.name]: !showAddFieldMenu[section.name] })}
+                                className="flex items-center space-x-2 px-3 py-2 text-white rounded-lg hover:opacity-90 transition-colors text-sm"
+                                style={{ backgroundColor: "#2B4C7E" }}
+                              >
+                                <PlusIcon className="h-4 w-4" />
+                                <span>Add Field</span>
+                              </button>
+
+                              {showAddFieldMenu[section.name] && (
+                                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-20">
+                                  <div className="py-1">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleAddField(section.name)}
+                                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                                    >
+                                      Normal Field
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleAddCustomerFields(section.name)}
+                                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                                    >
+                                      Customer Fields
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleAddEngineFields(section.name)}
+                                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                                    >
+                                      Engine Fields
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
 
@@ -743,8 +822,8 @@ export default function CompanyForms({ forms, setForms }: CompanyFormsProps) {
                               }
                               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             >
-                              {sections.map((section) => (
-                                <option key={section.value} value={section.value}>
+                              {allSections.map((section) => (
+                                <option key={section.id} value={section.name}>
                                   {section.label}
                                 </option>
                               ))}
@@ -874,6 +953,94 @@ export default function CompanyForms({ forms, setForms }: CompanyFormsProps) {
         cancelText="Cancel"
         type="info"
       />
+
+      {/* Add Section Modal */}
+      {showAddSectionModal && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50 p-4"
+          style={{
+            backgroundColor: "rgba(0, 0, 0, 0.3)",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setShowAddSectionModal(false);
+              setNewSectionData({ name: "", label: "" });
+            }
+          }}
+        >
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-gray-900">Add Custom Section</h3>
+              <button
+                onClick={() => {
+                  setShowAddSectionModal(false);
+                  setNewSectionData({ name: "", label: "" });
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Field Name (Database) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={newSectionData.name}
+                  onChange={(e) => setNewSectionData({ ...newSectionData, name: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="e.g., newSection (camelCase)"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  This will be used as the field name in the database. Use camelCase with no spaces.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Label (Display) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={newSectionData.label}
+                  onChange={(e) => setNewSectionData({ ...newSectionData, label: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="e.g., New Section"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  This will be displayed to users in the form.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end space-x-3 mt-6">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddSectionModal(false);
+                  setNewSectionData({ name: "", label: "" });
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleAddSection}
+                className="px-4 py-2 text-white rounded-lg hover:opacity-90 transition-colors"
+                style={{ backgroundColor: "#2B4C7E" }}
+              >
+                Add Section
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

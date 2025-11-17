@@ -121,13 +121,14 @@ export type FormFieldType =
   | "radio"
   | "file";
 
-export type FormSection =
-  | "basicInformation"
-  | "engineInformation"
-  | "serviceDetails"
-  | "warrantyCoverage"
-  | "servicesSummary"
-  | "signatures";
+export type FormSection = string;
+
+export interface CustomSection {
+  id: string;
+  name: string; // Field name for DB (e.g., "newSection")
+  label: string; // Display label (e.g., "New Section")
+  order: number;
+}
 
 export interface DynamicField {
   id: string;
@@ -174,6 +175,7 @@ export interface CompanyForm {
   engineId?: string;
   dynamicFields?: DynamicField[]; // Frontend format (deprecated)
   fields?: BackendField[]; // Backend format (new)
+  sections?: CustomSection[]; // Custom sections
   company?: {
     id: string;
     name: string;
