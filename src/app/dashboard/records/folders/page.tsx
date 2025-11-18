@@ -8,7 +8,7 @@ import {
   ArrowDownTrayIcon,
   FolderIcon,
   ChevronLeftIcon,
-  PencilIcon
+  PencilIcon,
 } from "@heroicons/react/24/outline";
 import { formRecordService, companyFormService } from "@/services";
 import { CompanyForm } from "@/types";
@@ -36,7 +36,9 @@ function RecordsPageContent() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [formTemplates, setFormTemplates] = useState<CompanyForm[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState<CompanyForm | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<CompanyForm | null>(
+    null
+  );
   const [records, setRecords] = useState<FormRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingRecords, setIsLoadingRecords] = useState(false);
@@ -55,7 +57,7 @@ function RecordsPageContent() {
 
   // Handle URL query parameter for folder ID
   useEffect(() => {
-    const folderId = searchParams.get('id');
+    const folderId = searchParams.get("id");
 
     if (!folderId) {
       // No ID in URL, show folders view
@@ -72,10 +74,15 @@ function RecordsPageContent() {
       return;
     }
 
-    const template = formTemplates.find(t => String(t.id) === String(folderId));
+    const template = formTemplates.find(
+      (t) => String(t.id) === String(folderId)
+    );
 
     if (template) {
-      if (!selectedTemplate || String(selectedTemplate.id) !== String(template.id)) {
+      if (
+        !selectedTemplate ||
+        String(selectedTemplate.id) !== String(template.id)
+      ) {
         // Template found and different from current, load it
         setSelectedTemplate(template);
         loadRecordsForTemplate(template.id);
@@ -102,7 +109,9 @@ function RecordsPageContent() {
   const loadRecordsForTemplate = async (templateId: string) => {
     try {
       setIsLoadingRecords(true);
-      const response = await apiClient.get(`/forms?companyFormId=${templateId}`);
+      const response = await apiClient.get(
+        `/forms?companyFormId=${templateId}`
+      );
       const recordsData = response.data?.data || response.data;
       setRecords(Array.isArray(recordsData) ? recordsData : []);
     } catch (error) {
@@ -128,12 +137,12 @@ function RecordsPageContent() {
   const handleExportPDF = async (recordId: string) => {
     try {
       const loadingToast = toast.loading("Generating PDF...");
-      const response = await apiClient.get(`/pdf/service-report/${recordId}`, {
-        responseType: 'blob',
+      const response = await apiClient.get(`/pdf/report/${recordId}`, {
+        responseType: "blob",
       });
 
       // Create a blob from the PDF Stream
-      const file = new Blob([response.data], { type: 'application/pdf' });
+      const file = new Blob([response.data], { type: "application/pdf" });
       const fileURL = URL.createObjectURL(file);
 
       // Open the PDF in a new window
@@ -191,7 +200,11 @@ function RecordsPageContent() {
     }
   };
 
-  const handleFieldChange = (sectionKey: string, fieldKey: string, value: any) => {
+  const handleFieldChange = (
+    sectionKey: string,
+    fieldKey: string,
+    value: any
+  ) => {
     setEditFormData((prev) => ({
       ...prev,
       [sectionKey]: {
@@ -218,7 +231,7 @@ function RecordsPageContent() {
     if (record.job_order) {
       return record.job_order;
     }
-    return 'N/A';
+    return "N/A";
   };
 
   // Filter records by search term
@@ -251,7 +264,8 @@ function RecordsPageContent() {
         </div>
         {selectedTemplate && (
           <div className="text-sm text-gray-600">
-            Total Records: <span className="font-semibold">{records.length}</span>
+            Total Records:{" "}
+            <span className="font-semibold">{records.length}</span>
           </div>
         )}
       </div>
@@ -262,7 +276,10 @@ function RecordsPageContent() {
           {isLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="bg-white rounded-lg shadow-md p-6 animate-pulse">
+                <div
+                  key={i}
+                  className="bg-white rounded-lg shadow-md p-6 animate-pulse"
+                >
                   <div className="flex flex-col items-center text-center space-y-3">
                     <div className="h-20 w-20 bg-gray-300 rounded"></div>
                     <div className="h-6 bg-gray-300 rounded w-3/4"></div>
@@ -391,123 +408,141 @@ function RecordsPageContent() {
             onClick={() => setSelectedRecord(null)}
             className="fixed inset-0 z-40 overflow-hidden"
             style={{
-              backgroundColor: 'rgba(0, 0, 0, 0.3)',
-              backdropFilter: 'blur(4px)',
-              WebkitBackdropFilter: 'blur(4px)',
+              backgroundColor: "rgba(0, 0, 0, 0.3)",
+              backdropFilter: "blur(4px)",
+              WebkitBackdropFilter: "blur(4px)",
               top: 0,
               left: 0,
               right: 0,
               bottom: 0,
-              width: '100vw',
-              height: '100vh'
+              width: "100vw",
+              height: "100vh",
             }}
           ></div>
 
           {/* Modal content */}
-          <div className="fixed inset-0 flex items-start justify-center p-4 z-50 overflow-y-auto" onClick={(e) => e.target === e.currentTarget && setSelectedRecord(null)}>
+          <div
+            className="fixed inset-0 flex items-start justify-center p-4 z-50 overflow-y-auto"
+            onClick={(e) =>
+              e.target === e.currentTarget && setSelectedRecord(null)
+            }
+          >
             <div className="bg-white shadow-lg max-w-[900px] w-full my-8">
-            {/* Close button */}
-            <div className="flex justify-end p-4">
-              <button
-                onClick={() => setSelectedRecord(null)}
-                className="text-gray-400 hover:text-gray-600 text-3xl font-bold leading-none"
-              >
-                &times;
-              </button>
-            </div>
-
-            {/* Company Header */}
-            <div className="text-center py-6 px-8 border-b-2 border-gray-300">
-              <h1 className="text-2xl font-bold text-gray-900 mb-1">
-                Power Systems, Incorporated
-              </h1>
-              <p className="text-xs text-gray-600 mb-1">
-                2nd Floor TOPY's Place #3 Calle Industria cor. Economia Street,
-                Bagumbayan, Libis, Quezon City
-              </p>
-              <p className="text-xs text-gray-600 mb-1">
-                Tel: (+63-2) 687-9275 to 78 | Fax: (+63-2) 687-9279
-              </p>
-              <p className="text-xs text-gray-600 mb-2">
-                Email: sales@psi-deutz.com
-              </p>
-              <p className="text-xs text-gray-500 uppercase tracking-wide">
-                NAVOTAS • BACOLOD • CEBU • CAGAYAN • DAVAO • GEN SAN • ZAMBOANGA •
-                ILO-ILO • SURIGAO
-              </p>
-            </div>
-
-            {/* Form Title */}
-            <div className="text-center py-4 bg-white">
-              <h2
-                className="text-2xl font-bold uppercase tracking-wide"
-                style={{ color: "#2B4C7E" }}
-              >
-                {selectedTemplate?.name || "Form Record"}
-              </h2>
-            </div>
-
-            {/* Form Body */}
-            <div className="px-8 py-6">
-              <div className="space-y-8">
-                {Object.entries(selectedRecord.data).map(([sectionName, sectionData]) => {
-                  const sectionLabel = sectionName.replace(/([A-Z])/g, " $1").trim();
-                  return (
-                    <div key={sectionName}>
-                      <h3
-                        className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b-2"
-                        style={{ color: "#2B4C7E" }}
-                      >
-                        {sectionLabel.charAt(0).toUpperCase() + sectionLabel.slice(1)}
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                        {typeof sectionData === "object" &&
-                          sectionData !== null &&
-                          Object.entries(sectionData).map(([fieldName, fieldValue]) => {
-                            const fieldLabel = fieldName.replace(/([A-Z])/g, " $1").trim();
-                            const isTextarea = String(fieldValue || "").length > 100;
-                            return (
-                              <div
-                                key={fieldName}
-                                className={isTextarea ? "md:col-span-2" : ""}
-                              >
-                                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                                  {fieldLabel.charAt(0).toUpperCase() + fieldLabel.slice(1)}
-                                </label>
-                                {isTextarea ? (
-                                  <div className="w-full px-2 py-1.5 border-0 border-b-2 border-gray-300 bg-transparent text-gray-900 whitespace-pre-wrap">
-                                    {String(fieldValue || "-")}
-                                  </div>
-                                ) : (
-                                  <div className="w-full px-2 py-1.5 border-0 border-b-2 border-gray-300 bg-transparent text-gray-900">
-                                    {typeof fieldValue === "object"
-                                      ? JSON.stringify(fieldValue)
-                                      : String(fieldValue || "-")}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                      </div>
-                    </div>
-                  );
-                })}
+              {/* Close button */}
+              <div className="flex justify-end p-4">
+                <button
+                  onClick={() => setSelectedRecord(null)}
+                  className="text-gray-400 hover:text-gray-600 text-3xl font-bold leading-none"
+                >
+                  &times;
+                </button>
               </div>
 
-              {/* Action buttons */}
-              <div className="flex items-center justify-end space-x-3 pt-6 mt-6 border-t-2 border-gray-300">
-                <button
-                  onClick={() => handleExportPDF(selectedRecord.id)}
-                  className="flex items-center space-x-2 px-8 py-3 text-white rounded-lg font-semibold hover:opacity-90 transition-colors shadow-md"
-                  style={{ backgroundColor: "#2B4C7E" }}
+              {/* Company Header */}
+              <div className="text-center py-6 px-8 border-b-2 border-gray-300">
+                <h1 className="text-2xl font-bold text-gray-900 mb-1">
+                  Power Systems, Incorporated
+                </h1>
+                <p className="text-xs text-gray-600 mb-1">
+                  2nd Floor TOPY's Place #3 Calle Industria cor. Economia
+                  Street, Bagumbayan, Libis, Quezon City
+                </p>
+                <p className="text-xs text-gray-600 mb-1">
+                  Tel: (+63-2) 687-9275 to 78 | Fax: (+63-2) 687-9279
+                </p>
+                <p className="text-xs text-gray-600 mb-2">
+                  Email: sales@psi-deutz.com
+                </p>
+                <p className="text-xs text-gray-500 uppercase tracking-wide">
+                  NAVOTAS • BACOLOD • CEBU • CAGAYAN • DAVAO • GEN SAN •
+                  ZAMBOANGA • ILO-ILO • SURIGAO
+                </p>
+              </div>
+
+              {/* Form Title */}
+              <div className="text-center py-4 bg-white">
+                <h2
+                  className="text-2xl font-bold uppercase tracking-wide"
+                  style={{ color: "#2B4C7E" }}
                 >
-                  <ArrowDownTrayIcon className="h-5 w-5" />
-                  <span>Export PDF</span>
-                </button>
+                  {selectedTemplate?.name || "Form Record"}
+                </h2>
+              </div>
+
+              {/* Form Body */}
+              <div className="px-8 py-6">
+                <div className="space-y-8">
+                  {Object.entries(selectedRecord.data).map(
+                    ([sectionName, sectionData]) => {
+                      const sectionLabel = sectionName
+                        .replace(/([A-Z])/g, " $1")
+                        .trim();
+                      return (
+                        <div key={sectionName}>
+                          <h3
+                            className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b-2"
+                            style={{ color: "#2B4C7E" }}
+                          >
+                            {sectionLabel.charAt(0).toUpperCase() +
+                              sectionLabel.slice(1)}
+                          </h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                            {typeof sectionData === "object" &&
+                              sectionData !== null &&
+                              Object.entries(sectionData).map(
+                                ([fieldName, fieldValue]) => {
+                                  const fieldLabel = fieldName
+                                    .replace(/([A-Z])/g, " $1")
+                                    .trim();
+                                  const isTextarea =
+                                    String(fieldValue || "").length > 100;
+                                  return (
+                                    <div
+                                      key={fieldName}
+                                      className={
+                                        isTextarea ? "md:col-span-2" : ""
+                                      }
+                                    >
+                                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                                        {fieldLabel.charAt(0).toUpperCase() +
+                                          fieldLabel.slice(1)}
+                                      </label>
+                                      {isTextarea ? (
+                                        <div className="w-full px-2 py-1.5 border-0 border-b-2 border-gray-300 bg-transparent text-gray-900 whitespace-pre-wrap">
+                                          {String(fieldValue || "-")}
+                                        </div>
+                                      ) : (
+                                        <div className="w-full px-2 py-1.5 border-0 border-b-2 border-gray-300 bg-transparent text-gray-900">
+                                          {typeof fieldValue === "object"
+                                            ? JSON.stringify(fieldValue)
+                                            : String(fieldValue || "-")}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                }
+                              )}
+                          </div>
+                        </div>
+                      );
+                    }
+                  )}
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex items-center justify-end space-x-3 pt-6 mt-6 border-t-2 border-gray-300">
+                  <button
+                    onClick={() => handleExportPDF(selectedRecord.id)}
+                    className="flex items-center space-x-2 px-8 py-3 text-white rounded-lg font-semibold hover:opacity-90 transition-colors shadow-md"
+                    style={{ backgroundColor: "#2B4C7E" }}
+                  >
+                    <ArrowDownTrayIcon className="h-5 w-5" />
+                    <span>Export PDF</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
         </>
       )}
 
@@ -519,20 +554,25 @@ function RecordsPageContent() {
             onClick={handleCloseEditModal}
             className="fixed inset-0 z-40 overflow-hidden"
             style={{
-              backgroundColor: 'rgba(0, 0, 0, 0.3)',
-              backdropFilter: 'blur(4px)',
-              WebkitBackdropFilter: 'blur(4px)',
+              backgroundColor: "rgba(0, 0, 0, 0.3)",
+              backdropFilter: "blur(4px)",
+              WebkitBackdropFilter: "blur(4px)",
               top: 0,
               left: 0,
               right: 0,
               bottom: 0,
-              width: '100vw',
-              height: '100vh'
+              width: "100vw",
+              height: "100vh",
             }}
           ></div>
 
           {/* Modal content */}
-          <div className="fixed inset-0 flex items-start justify-center p-4 z-50 overflow-y-auto" onClick={(e) => e.target === e.currentTarget && handleCloseEditModal()}>
+          <div
+            className="fixed inset-0 flex items-start justify-center p-4 z-50 overflow-y-auto"
+            onClick={(e) =>
+              e.target === e.currentTarget && handleCloseEditModal()
+            }
+          >
             <div className="bg-white rounded-lg shadow-xl max-w-[900px] w-full my-8">
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-gray-200">
@@ -565,57 +605,81 @@ function RecordsPageContent() {
 
                 {/* Dynamic Form Sections */}
                 <div className="space-y-6">
-                  {Object.entries(editFormData).map(([sectionName, sectionData]) => {
-                    const sectionLabel = sectionName.replace(/([A-Z])/g, " $1").trim();
-                    return (
-                      <div key={sectionName} className="border border-gray-200 rounded-lg p-4">
-                        <h4 className="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">
-                          {sectionLabel.charAt(0).toUpperCase() + sectionLabel.slice(1)}
-                        </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {typeof sectionData === "object" &&
-                            sectionData !== null &&
-                            Object.entries(sectionData).map(([fieldName, fieldValue]) => {
-                              const fieldLabel = fieldName.replace(/([A-Z])/g, " $1").trim();
-                              const isTextarea = String(fieldValue || "").length > 100;
-                              return (
-                                <div
-                                  key={fieldName}
-                                  className={isTextarea ? "md:col-span-2" : ""}
-                                >
-                                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    {fieldLabel.charAt(0).toUpperCase() + fieldLabel.slice(1)}
-                                  </label>
-                                  {isTextarea ? (
-                                    <textarea
-                                      value={String(fieldValue || "")}
-                                      onChange={(e) =>
-                                        handleFieldChange(sectionName, fieldName, e.target.value)
+                  {Object.entries(editFormData).map(
+                    ([sectionName, sectionData]) => {
+                      const sectionLabel = sectionName
+                        .replace(/([A-Z])/g, " $1")
+                        .trim();
+                      return (
+                        <div
+                          key={sectionName}
+                          className="border border-gray-200 rounded-lg p-4"
+                        >
+                          <h4 className="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">
+                            {sectionLabel.charAt(0).toUpperCase() +
+                              sectionLabel.slice(1)}
+                          </h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {typeof sectionData === "object" &&
+                              sectionData !== null &&
+                              Object.entries(sectionData).map(
+                                ([fieldName, fieldValue]) => {
+                                  const fieldLabel = fieldName
+                                    .replace(/([A-Z])/g, " $1")
+                                    .trim();
+                                  const isTextarea =
+                                    String(fieldValue || "").length > 100;
+                                  return (
+                                    <div
+                                      key={fieldName}
+                                      className={
+                                        isTextarea ? "md:col-span-2" : ""
                                       }
-                                      rows={4}
-                                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    />
-                                  ) : (
-                                    <input
-                                      type="text"
-                                      value={
-                                        typeof fieldValue === "object"
-                                          ? JSON.stringify(fieldValue)
-                                          : String(fieldValue || "")
-                                      }
-                                      onChange={(e) =>
-                                        handleFieldChange(sectionName, fieldName, e.target.value)
-                                      }
-                                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    />
-                                  )}
-                                </div>
-                              );
-                            })}
+                                    >
+                                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        {fieldLabel.charAt(0).toUpperCase() +
+                                          fieldLabel.slice(1)}
+                                      </label>
+                                      {isTextarea ? (
+                                        <textarea
+                                          value={String(fieldValue || "")}
+                                          onChange={(e) =>
+                                            handleFieldChange(
+                                              sectionName,
+                                              fieldName,
+                                              e.target.value
+                                            )
+                                          }
+                                          rows={4}
+                                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        />
+                                      ) : (
+                                        <input
+                                          type="text"
+                                          value={
+                                            typeof fieldValue === "object"
+                                              ? JSON.stringify(fieldValue)
+                                              : String(fieldValue || "")
+                                          }
+                                          onChange={(e) =>
+                                            handleFieldChange(
+                                              sectionName,
+                                              fieldName,
+                                              e.target.value
+                                            )
+                                          }
+                                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        />
+                                      )}
+                                    </div>
+                                  );
+                                }
+                              )}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    }
+                  )}
                 </div>
               </div>
 
@@ -656,7 +720,6 @@ function RecordsPageContent() {
     </div>
   );
 }
-
 
 export default function RecordsPage() {
   return (

@@ -76,7 +76,7 @@ function FormsPageContent() {
           {/* <button
             onClick={() => {
               setActiveTab("create");
-              router.push("/dashboard/forms");
+              router.push("/dashboard/forms");F
             }}
             className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
               activeTab === "create"
