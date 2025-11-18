@@ -27,15 +27,6 @@ export default function FormInstances({ formId, forms }: FormInstancesProps) {
   const [engines, setEngines] = useState<any[]>([]);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
-  const sections: { value: FormSection; label: string }[] = [
-    { value: "basicInformation", label: "Basic Information" },
-    { value: "engineInformation", label: "Engine Information" },
-    { value: "serviceDetails", label: "Service Details" },
-    { value: "warrantyCoverage", label: "Warranty Coverage" },
-    { value: "servicesSummary", label: "Services Summary" },
-    { value: "signatures", label: "Signatures" },
-  ];
-
   // Load customers and engines on mount
   useEffect(() => {
     loadCustomers();
@@ -595,6 +586,48 @@ export default function FormInstances({ formId, forms }: FormInstancesProps) {
       ? formTemplate.dynamicFields
       : [];
 
+  // Build dynamic sections from fields or use provided sections
+  const dynamicSections: { value: string; label: string }[] = (() => {
+    // If the form template has sections defined, use them
+    if (formTemplate.sections && Array.isArray(formTemplate.sections) && formTemplate.sections.length > 0) {
+      return formTemplate.sections
+        // Sort by sectionNumber first (if available), then by order as fallback
+        .sort((a, b) => {
+          if (a.sectionNumber !== undefined && b.sectionNumber !== undefined) {
+            return a.sectionNumber - b.sectionNumber;
+          }
+          return a.order - b.order;
+        })
+        .map(section => ({
+          value: section.name,
+          label: section.label
+        }));
+    }
+
+    // Otherwise, extract unique sections from fields
+    if (fieldsToRender.length > 0) {
+      const uniqueSectionNames = Array.from(
+        new Set(fieldsToRender.map(f => f.section || "basicInformation"))
+      );
+
+      return uniqueSectionNames.map(sectionName => {
+        // Convert camelCase to Title Case (e.g., 'newSection' -> 'New Section')
+        const label = sectionName
+          .replace(/([A-Z])/g, ' $1') // Add space before capital letters
+          .replace(/^./, str => str.toUpperCase()) // Capitalize first letter
+          .trim();
+
+        return {
+          value: sectionName,
+          label: label
+        };
+      });
+    }
+
+    // Fallback to one default section
+    return [{ value: "basicInformation", label: "Basic Information" }];
+  })();
+
   // Skeleton loader while loading
   if (isLoading) {
     return (
@@ -684,7 +717,7 @@ export default function FormInstances({ formId, forms }: FormInstancesProps) {
           <form onSubmit={handleSubmitForm} className="space-y-8">
             {fieldsToRender && fieldsToRender.length > 0 ? (
               <div className="space-y-8">
-                {sections.map((section) => {
+                {dynamicSections.map((section) => {
                   const sectionFields = fieldsToRender
                     .filter(
                       (field) =>

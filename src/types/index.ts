@@ -128,6 +128,7 @@ export interface CustomSection {
   name: string; // Field name for DB (e.g., "newSection")
   label: string; // Display label (e.g., "New Section")
   order: number;
+  sectionNumber?: number; // Order for displaying in forms (1, 2, 3, etc.)
 }
 
 export interface DynamicField {

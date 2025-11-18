@@ -50,6 +50,7 @@ export default function CompanyForms({ forms, setForms }: CompanyFormsProps) {
   const [showAddFieldMenu, setShowAddFieldMenu] = useState<Record<string, boolean>>({});
   const [showAddSectionModal, setShowAddSectionModal] = useState(false);
   const [newSectionData, setNewSectionData] = useState({ name: "", label: "" });
+  const [draggedSection, setDraggedSection] = useState<string | null>(null);
 
   // Load companies and customers on mount
   useEffect(() => {
@@ -126,17 +127,8 @@ export default function CompanyForms({ forms, setForms }: CompanyFormsProps) {
     "file",
   ];
 
-  const defaultSections: CustomSection[] = [
-    { id: "basicInformation", name: "basicInformation", label: "Basic Information", order: 0 },
-    { id: "engineInformation", name: "engineInformation", label: "Engine Information", order: 1 },
-    { id: "serviceDetails", name: "serviceDetails", label: "Service Details", order: 2 },
-    { id: "warrantyCoverage", name: "warrantyCoverage", label: "Warranty Coverage", order: 3 },
-    { id: "servicesSummary", name: "servicesSummary", label: "Services Summary", order: 4 },
-    { id: "signatures", name: "signatures", label: "Signatures", order: 5 },
-  ];
-
-  // Get all sections (default + custom)
-  const allSections = [...defaultSections, ...customSections].sort((a, b) => a.order - b.order);
+  // Get all sections sorted by order
+  const allSections = [...customSections].sort((a, b) => a.order - b.order);
 
   const handleOpenCreateModal = () => {
     setModalMode("create");
@@ -148,7 +140,10 @@ export default function CompanyForms({ forms, setForms }: CompanyFormsProps) {
       engineId: "",
     });
     setDynamicFields([]);
-    setCustomSections([]);
+    // Initialize with one default section
+    setCustomSections([
+      { id: "basicInformation", name: "basicInformation", label: "Basic Information", order: 0, sectionNumber: 1 }
+    ]);
     setShowModal(true);
   };
 
@@ -163,16 +158,10 @@ export default function CompanyForms({ forms, setForms }: CompanyFormsProps) {
       engineId: form.engineId || "",
     });
 
-    // Load custom sections
-    if (form.sections && Array.isArray(form.sections)) {
-      setCustomSections(form.sections);
-    } else {
-      setCustomSections([]);
-    }
-
     // Convert backend fields format to frontend dynamicFields format
+    let convertedFields: DynamicField[] = [];
     if (form.fields && Array.isArray(form.fields)) {
-      const convertedFields: DynamicField[] = form.fields.map(
+      convertedFields = form.fields.map(
         (field, index) => ({
           id: `field-${index}`,
           name: field.fieldName,
@@ -190,9 +179,45 @@ export default function CompanyForms({ forms, setForms }: CompanyFormsProps) {
       setDynamicFields(convertedFields);
     } else if (form.dynamicFields && Array.isArray(form.dynamicFields)) {
       // Fallback to old format
+      convertedFields = form.dynamicFields;
       setDynamicFields(form.dynamicFields);
     } else {
       setDynamicFields([]);
+    }
+
+    // Build sections from fields (extract unique sections)
+    if (form.sections && Array.isArray(form.sections) && form.sections.length > 0) {
+      // If sections are provided, use them
+      setCustomSections(form.sections);
+    } else if (convertedFields.length > 0) {
+      // Extract unique section names from fields
+      const uniqueSectionNames = Array.from(
+        new Set(convertedFields.map(f => f.section || "basicInformation"))
+      );
+
+      // Create section objects with auto-generated labels
+      const generatedSections: CustomSection[] = uniqueSectionNames.map((sectionName, index) => {
+        // Convert camelCase to Title Case (e.g., 'newSection' -> 'New Section')
+        const label = sectionName
+          .replace(/([A-Z])/g, ' $1') // Add space before capital letters
+          .replace(/^./, str => str.toUpperCase()) // Capitalize first letter
+          .trim();
+
+        return {
+          id: sectionName,
+          name: sectionName,
+          label: label,
+          order: index,
+          sectionNumber: index + 1
+        };
+      });
+
+      setCustomSections(generatedSections);
+    } else {
+      // No fields, initialize with one default section
+      setCustomSections([
+        { id: "basicInformation", name: "basicInformation", label: "Basic Information", order: 0, sectionNumber: 1 }
+      ]);
     }
 
     setShowModal(true);
@@ -300,6 +325,7 @@ export default function CompanyForms({ forms, setForms }: CompanyFormsProps) {
       name: newSectionData.name,
       label: newSectionData.label,
       order: allSections.length,
+      sectionNumber: allSections.length + 1,
     };
 
     setCustomSections([...customSections, newSection]);
@@ -309,10 +335,15 @@ export default function CompanyForms({ forms, setForms }: CompanyFormsProps) {
   };
 
   const handleRemoveSection = (sectionId: string) => {
-    // Don't allow removing default sections
+    // Don't allow removing the last section
+    if (customSections.length <= 1) {
+      toast.error("Cannot remove the last section. At least one section is required.");
+      return;
+    }
+
     const section = customSections.find(s => s.id === sectionId);
     if (!section) {
-      toast.error("Cannot remove default sections");
+      toast.error("Section not found");
       return;
     }
 
@@ -323,6 +354,37 @@ export default function CompanyForms({ forms, setForms }: CompanyFormsProps) {
     setDynamicFields(dynamicFields.filter(f => f.section !== section.name));
 
     toast.success("Section removed successfully!");
+  };
+
+  const handleDragStart = (sectionId: string) => {
+    setDraggedSection(sectionId);
+  };
+
+  const handleDragOver = (e: React.DragEvent, targetSectionId: string) => {
+    e.preventDefault();
+    if (!draggedSection || draggedSection === targetSectionId) return;
+
+    const draggedIndex = customSections.findIndex(s => s.id === draggedSection);
+    const targetIndex = customSections.findIndex(s => s.id === targetSectionId);
+
+    if (draggedIndex === -1 || targetIndex === -1) return;
+
+    const newSections = [...customSections];
+    const [removed] = newSections.splice(draggedIndex, 1);
+    newSections.splice(targetIndex, 0, removed);
+
+    // Update both order and sectionNumber properties
+    const updatedSections = newSections.map((section, index) => ({
+      ...section,
+      order: index,
+      sectionNumber: index + 1
+    }));
+
+    setCustomSections(updatedSections);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedSection(null);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -659,32 +721,47 @@ export default function CompanyForms({ forms, setForms }: CompanyFormsProps) {
                 </div>
 
                 <div className="space-y-6">
-                  {allSections.map((section) => {
+                  {allSections.map((section, index) => {
                     const sectionFields = dynamicFields.filter(
                       (field) => (field.section || "basicInformation") === section.name
                     );
-                    const isCustomSection = customSections.some(s => s.id === section.id);
 
                     return (
-                      <div key={section.id} className="border-2 border-gray-200 rounded-lg p-4 bg-white">
+                      <div
+                        key={section.id}
+                        draggable
+                        onDragStart={() => handleDragStart(section.id)}
+                        onDragOver={(e) => handleDragOver(e, section.id)}
+                        onDragEnd={handleDragEnd}
+                        className={`border-2 border-gray-200 rounded-lg p-4 bg-white cursor-move transition-all ${
+                          draggedSection === section.id ? 'opacity-50' : ''
+                        }`}
+                      >
                         <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-300">
-                          <h5 className="text-md font-semibold text-gray-800">
-                            {section.label}
-                            {isCustomSection && (
-                              <span className="ml-2 text-xs text-gray-500">(Custom)</span>
-                            )}
-                          </h5>
+                          <div className="flex items-center space-x-3">
+                            {/* Drag handle indicator */}
+                            <div className="flex flex-col space-y-0.5 cursor-grab active:cursor-grabbing">
+                              <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
+                              <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
+                              <div className="w-1 h-1 bg-gray-400 rounded-full"></div>
+                            </div>
+                            <h5 className="text-md font-semibold text-gray-800">
+                              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-800 text-xs font-bold mr-2">
+                                {index + 1}
+                              </span>
+                              {section.label}
+                            </h5>
+                          </div>
                           <div className="flex items-center space-x-2">
-                            {isCustomSection && (
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveSection(section.id)}
-                                className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
-                                title="Remove Section"
-                              >
-                                <TrashIcon className="h-4 w-4" />
-                              </button>
-                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSection(section.id)}
+                              className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors"
+                              title="Remove Section"
+                              disabled={customSections.length <= 1}
+                            >
+                              <TrashIcon className="h-4 w-4" />
+                            </button>
                             <div className="relative add-field-menu-container">
                               <button
                                 type="button"
