@@ -7,13 +7,15 @@ import {
   EyeIcon,
   ArrowDownTrayIcon,
   FolderIcon,
-  ChevronLeftIcon
+  ChevronLeftIcon,
+  PencilIcon
 } from "@heroicons/react/24/outline";
 import { formRecordService, companyFormService } from "@/services";
 import { CompanyForm } from "@/types";
 import toast from "react-hot-toast";
 import apiClient from "@/lib/axios";
 import { TableSkeleton, CardSkeleton } from "@/components/Skeletons";
+import ConfirmationModal from "@/components/ConfirmationModal";
 
 interface FormRecord {
   id: string;
@@ -40,6 +42,11 @@ function RecordsPageContent() {
   const [isLoadingRecords, setIsLoadingRecords] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRecord, setSelectedRecord] = useState<FormRecord | null>(null);
+  const [editingRecord, setEditingRecord] = useState<FormRecord | null>(null);
+  const [editFormData, setEditFormData] = useState<Record<string, any>>({});
+  const [editJobOrder, setEditJobOrder] = useState<string>("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
 
   // Fetch form templates on mount
   useEffect(() => {
@@ -137,6 +144,61 @@ function RecordsPageContent() {
       console.error("Error exporting PDF:", error);
       toast.error("Failed to generate PDF");
     }
+  };
+
+  const handleOpenEditModal = (record: FormRecord) => {
+    setEditingRecord(record);
+    setEditFormData(record.data);
+    setEditJobOrder(record.job_order || "");
+  };
+
+  const handleCloseEditModal = () => {
+    setEditingRecord(null);
+    setEditFormData({});
+    setEditJobOrder("");
+  };
+
+  const handleRequestSave = () => {
+    setShowSaveConfirm(true);
+  };
+
+  const confirmSaveEdit = async () => {
+    if (!editingRecord) return;
+
+    setIsSaving(true);
+    try {
+      const loadingToast = toast.loading("Saving changes...");
+
+      await formRecordService.update(editingRecord.id, {
+        jobOrder: editJobOrder,
+        companyFormId: editingRecord.companyFormId,
+        data: editFormData,
+      });
+
+      toast.success("Form updated successfully!", { id: loadingToast });
+
+      // Reload records
+      if (selectedTemplate) {
+        await loadRecordsForTemplate(selectedTemplate.id);
+      }
+
+      handleCloseEditModal();
+    } catch (error) {
+      console.error("Error updating form:", error);
+      toast.error("Failed to update form");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleFieldChange = (sectionKey: string, fieldKey: string, value: any) => {
+    setEditFormData((prev) => ({
+      ...prev,
+      [sectionKey]: {
+        ...(prev[sectionKey] || {}),
+        [fieldKey]: value,
+      },
+    }));
   };
 
   // Helper function to get all field values from nested data
@@ -297,6 +359,13 @@ function RecordsPageContent() {
                             View
                           </button>
                           <button
+                            onClick={() => handleOpenEditModal(record)}
+                            className="text-orange-600 hover:text-orange-900 inline-flex items-center"
+                          >
+                            <PencilIcon className="h-5 w-5 mr-1" />
+                            Edit
+                          </button>
+                          <button
                             onClick={() => handleExportPDF(record.id)}
                             className="text-green-600 hover:text-green-900 inline-flex items-center"
                           >
@@ -441,6 +510,149 @@ function RecordsPageContent() {
         </div>
         </>
       )}
+
+      {/* Edit Modal */}
+      {editingRecord && selectedTemplate && (
+        <>
+          {/* Backdrop with blur */}
+          <div
+            onClick={handleCloseEditModal}
+            className="fixed inset-0 z-40 overflow-hidden"
+            style={{
+              backgroundColor: 'rgba(0, 0, 0, 0.3)',
+              backdropFilter: 'blur(4px)',
+              WebkitBackdropFilter: 'blur(4px)',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              width: '100vw',
+              height: '100vh'
+            }}
+          ></div>
+
+          {/* Modal content */}
+          <div className="fixed inset-0 flex items-start justify-center p-4 z-50 overflow-y-auto" onClick={(e) => e.target === e.currentTarget && handleCloseEditModal()}>
+            <div className="bg-white rounded-lg shadow-xl max-w-[900px] w-full my-8">
+              {/* Header */}
+              <div className="flex items-center justify-between p-6 border-b border-gray-200">
+                <h3 className="text-xl font-bold text-gray-900">
+                  Edit Form Record
+                </h3>
+                <button
+                  onClick={handleCloseEditModal}
+                  className="text-gray-400 hover:text-gray-600 text-3xl font-bold leading-none"
+                >
+                  &times;
+                </button>
+              </div>
+
+              {/* Form Body */}
+              <div className="px-6 py-6 max-h-[70vh] overflow-y-auto">
+                {/* Job Order Field */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Job Order
+                  </label>
+                  <input
+                    type="text"
+                    value={editJobOrder}
+                    onChange={(e) => setEditJobOrder(e.target.value)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter job order number"
+                  />
+                </div>
+
+                {/* Dynamic Form Sections */}
+                <div className="space-y-6">
+                  {Object.entries(editFormData).map(([sectionName, sectionData]) => {
+                    const sectionLabel = sectionName.replace(/([A-Z])/g, " $1").trim();
+                    return (
+                      <div key={sectionName} className="border border-gray-200 rounded-lg p-4">
+                        <h4 className="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">
+                          {sectionLabel.charAt(0).toUpperCase() + sectionLabel.slice(1)}
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {typeof sectionData === "object" &&
+                            sectionData !== null &&
+                            Object.entries(sectionData).map(([fieldName, fieldValue]) => {
+                              const fieldLabel = fieldName.replace(/([A-Z])/g, " $1").trim();
+                              const isTextarea = String(fieldValue || "").length > 100;
+                              return (
+                                <div
+                                  key={fieldName}
+                                  className={isTextarea ? "md:col-span-2" : ""}
+                                >
+                                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    {fieldLabel.charAt(0).toUpperCase() + fieldLabel.slice(1)}
+                                  </label>
+                                  {isTextarea ? (
+                                    <textarea
+                                      value={String(fieldValue || "")}
+                                      onChange={(e) =>
+                                        handleFieldChange(sectionName, fieldName, e.target.value)
+                                      }
+                                      rows={4}
+                                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    />
+                                  ) : (
+                                    <input
+                                      type="text"
+                                      value={
+                                        typeof fieldValue === "object"
+                                          ? JSON.stringify(fieldValue)
+                                          : String(fieldValue || "")
+                                      }
+                                      onChange={(e) =>
+                                        handleFieldChange(sectionName, fieldName, e.target.value)
+                                      }
+                                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    />
+                                  )}
+                                </div>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200">
+                <button
+                  onClick={handleCloseEditModal}
+                  disabled={isSaving}
+                  className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRequestSave}
+                  disabled={isSaving}
+                  className="px-6 py-2 text-white rounded-lg hover:opacity-90 transition-colors disabled:opacity-50"
+                  style={{ backgroundColor: "#2B4C7E" }}
+                >
+                  Save Changes
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        isOpen={showSaveConfirm}
+        onClose={() => setShowSaveConfirm(false)}
+        onConfirm={confirmSaveEdit}
+        title="Save Changes"
+        message="Are you sure you want to save these changes to the form record?"
+        confirmText="Save Changes"
+        cancelText="Cancel"
+        type="info"
+      />
     </div>
   );
 }

@@ -2,12 +2,14 @@ import apiClient from "@/lib/axios";
 import { ApiResponse } from "@/types";
 
 export interface FormRecordSubmission {
+  jobOrder?: string;
   companyFormId: number;
   data: Record<string, any>;
 }
 
 export interface FormRecord {
   id: string;
+  jobOrder?: string;
   companyFormId: number;
   data: Record<string, any>;
   createdAt: Date;
