@@ -9,6 +9,8 @@ import {
   FolderIcon,
   ChevronLeftIcon,
   PencilIcon,
+  MagnifyingGlassIcon,
+  XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { formRecordService, companyFormService } from "@/services";
 import { CompanyForm } from "@/types";
@@ -22,8 +24,8 @@ interface FormRecord {
   companyFormId: number;
   job_order?: string;
   data: Record<string, any>;
-  createdAt: Date;
-  updatedAt: Date;
+  dateCreated: string;
+  dateUpdated: string;
   companyForm: {
     id: string;
     name: string;
@@ -49,6 +51,14 @@ function RecordsPageContent() {
   const [editJobOrder, setEditJobOrder] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+
+  // Date range filter state
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const recordsPerPage = 10;
 
   // Fetch form templates on mount
   useEffect(() => {
@@ -234,15 +244,57 @@ function RecordsPageContent() {
     return "N/A";
   };
 
-  // Filter records by search term
+  // Filter records by search term and date range
   const filteredRecords = records.filter((record) => {
-    if (!searchTerm) return true;
-    const searchLower = searchTerm.toLowerCase();
-    const allFields = getAllFieldsFlat(record.data);
-    return Object.values(allFields).some((value) =>
-      String(value).toLowerCase().includes(searchLower)
-    );
+    // Filter by job order search term
+    if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
+      const jobOrder = getJobOrder(record);
+
+      // Don't match 'N/A' - only match actual job orders
+      if (jobOrder === "N/A") {
+        return false;
+      }
+
+      if (!jobOrder.toLowerCase().includes(searchLower)) {
+        return false;
+      }
+    }
+
+    // Filter by date range
+    if (startDate || endDate) {
+      const recordDate = new Date(record.dateCreated);
+
+      if (startDate) {
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        if (recordDate < start) {
+          return false;
+        }
+      }
+
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        if (recordDate > end) {
+          return false;
+        }
+      }
+    }
+
+    return true;
   });
+
+  // Pagination
+  const totalPages = Math.ceil(filteredRecords.length / recordsPerPage);
+  const startIndex = (currentPage - 1) * recordsPerPage;
+  const endIndex = startIndex + recordsPerPage;
+  const paginatedRecords = filteredRecords.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, startDate, endDate]);
 
   return (
     <div className="space-y-6">
@@ -322,17 +374,132 @@ function RecordsPageContent() {
       {/* Records Table View */}
       {selectedTemplate && (
         <>
-          {/* Search */}
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <input
-                type="text"
-                placeholder="Search in all fields..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
+          {/* Search and Filters */}
+          <div className="bg-transparent rounded-lg p-4">
+            <div className="flex flex-col lg:flex-row gap-4">
+              {/* Search Box */}
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Search by Job Order
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Enter Job Order..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  />
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm("")}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    >
+                      <XMarkIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Date Range Filter */}
+              <div className="lg:w-auto">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Filter by Date Range
+                </label>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="relative">
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm"
+                      placeholder="Start Date"
+                    />
+                  </div>
+                  <div className="flex items-center justify-center text-gray-400 hidden sm:block">
+                    <span className="text-sm font-medium">to</span>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm"
+                      placeholder="End Date"
+                    />
+                  </div>
+                  {(startDate || endDate) && (
+                    <button
+                      onClick={() => {
+                        setStartDate("");
+                        setEndDate("");
+                      }}
+                      className="px-4 py-2.5 text-sm text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                    >
+                      <XMarkIcon className="h-4 w-4" />
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
+
+            {/* Active Filters Display */}
+            {(searchTerm || startDate || endDate) && (
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-medium text-gray-700">
+                    Active Filters:
+                  </span>
+                  {searchTerm && (
+                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                      Job Order: "{searchTerm}"
+                      <button
+                        onClick={() => setSearchTerm("")}
+                        className="hover:bg-blue-200 rounded-full p-0.5"
+                      >
+                        <XMarkIcon className="h-3.5 w-3.5" />
+                      </button>
+                    </span>
+                  )}
+                  {startDate && (
+                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
+                      From: {new Date(startDate).toLocaleDateString()}
+                      <button
+                        onClick={() => setStartDate("")}
+                        className="hover:bg-green-200 rounded-full p-0.5"
+                      >
+                        <XMarkIcon className="h-3.5 w-3.5" />
+                      </button>
+                    </span>
+                  )}
+                  {endDate && (
+                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
+                      To: {new Date(endDate).toLocaleDateString()}
+                      <button
+                        onClick={() => setEndDate("")}
+                        className="hover:bg-green-200 rounded-full p-0.5"
+                      >
+                        <XMarkIcon className="h-3.5 w-3.5" />
+                      </button>
+                    </span>
+                  )}
+                  <button
+                    onClick={() => {
+                      setSearchTerm("");
+                      setStartDate("");
+                      setEndDate("");
+                    }}
+                    className="text-sm text-gray-600 hover:text-gray-900 underline ml-2"
+                  >
+                    Clear all
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Records Table */}
@@ -348,54 +515,154 @@ function RecordsPageContent() {
               </p>
             </div>
           ) : (
-            <div className="bg-white rounded-lg shadow overflow-hidden">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Job Order
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {filteredRecords.map((record) => (
-                    <tr key={record.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {getJobOrder(record)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex justify-end space-x-3">
-                          <button
-                            onClick={() => setSelectedRecord(record)}
-                            className="text-blue-600 hover:text-blue-900 inline-flex items-center"
-                          >
-                            <EyeIcon className="h-5 w-5 mr-1" />
-                            View
-                          </button>
-                          <button
-                            onClick={() => handleOpenEditModal(record)}
-                            className="text-orange-600 hover:text-orange-900 inline-flex items-center"
-                          >
-                            <PencilIcon className="h-5 w-5 mr-1" />
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleExportPDF(record.id)}
-                            className="text-green-600 hover:text-green-900 inline-flex items-center"
-                          >
-                            <ArrowDownTrayIcon className="h-5 w-5 mr-1" />
-                            Export
-                          </button>
-                        </div>
-                      </td>
+            <>
+              <div className="bg-white rounded-lg shadow overflow-hidden">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Job Order
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Date Created
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Actions
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {paginatedRecords.map((record) => (
+                      <tr key={record.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {getJobOrder(record)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                          {new Date(record.dateCreated).toLocaleDateString(
+                            "en-US",
+                            {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            }
+                          )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <div className="flex justify-end space-x-3">
+                            <button
+                              onClick={() => setSelectedRecord(record)}
+                              className="text-blue-600 hover:text-blue-900 inline-flex items-center"
+                            >
+                              <EyeIcon className="h-5 w-5 mr-1" />
+                              View
+                            </button>
+                            <button
+                              onClick={() => handleOpenEditModal(record)}
+                              className="text-orange-600 hover:text-orange-900 inline-flex items-center"
+                            >
+                              <PencilIcon className="h-5 w-5 mr-1" />
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleExportPDF(record.id)}
+                              className="text-green-600 hover:text-green-900 inline-flex items-center"
+                            >
+                              <ArrowDownTrayIcon className="h-5 w-5 mr-1" />
+                              Export
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 sm:px-6">
+                  <div className="flex-1 flex justify-between sm:hidden">
+                    <button
+                      onClick={() =>
+                        setCurrentPage((prev) => Math.max(prev - 1, 1))
+                      }
+                      disabled={currentPage === 1}
+                      className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Previous
+                    </button>
+                    <button
+                      onClick={() =>
+                        setCurrentPage((prev) => Math.min(prev + 1, totalPages))
+                      }
+                      disabled={currentPage === totalPages}
+                      className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next
+                    </button>
+                  </div>
+                  <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm text-gray-700">
+                        Showing{" "}
+                        <span className="font-medium">{startIndex + 1}</span> to{" "}
+                        <span className="font-medium">
+                          {Math.min(endIndex, filteredRecords.length)}
+                        </span>{" "}
+                        of{" "}
+                        <span className="font-medium">
+                          {filteredRecords.length}
+                        </span>{" "}
+                        results
+                      </p>
+                    </div>
+                    <div>
+                      <nav
+                        className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"
+                        aria-label="Pagination"
+                      >
+                        <button
+                          onClick={() =>
+                            setCurrentPage((prev) => Math.max(prev - 1, 1))
+                          }
+                          disabled={currentPage === 1}
+                          className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Previous
+                        </button>
+                        {Array.from(
+                          { length: totalPages },
+                          (_, i) => i + 1
+                        ).map((page) => (
+                          <button
+                            key={page}
+                            onClick={() => setCurrentPage(page)}
+                            className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
+                              page === currentPage
+                                ? "z-10 bg-blue-50 border-blue-500 text-blue-600"
+                                : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        ))}
+                        <button
+                          onClick={() =>
+                            setCurrentPage((prev) =>
+                              Math.min(prev + 1, totalPages)
+                            )
+                          }
+                          disabled={currentPage === totalPages}
+                          className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          Next
+                        </button>
+                      </nav>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </>
       )}
@@ -595,7 +862,7 @@ function RecordsPageContent() {
                     Job Order
                   </label>
                   <div className="text-gray-900 font-medium">
-                    {editJobOrder || 'N/A'}
+                    {editJobOrder || "N/A"}
                   </div>
                 </div>
 
