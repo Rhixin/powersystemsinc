@@ -255,13 +255,24 @@ function RecordsPageContent() {
     return "N/A";
   };
 
+  // Helper function to get serial number from record
+  const getSerialNo = (record: FormRecord): string => {
+    // Check in engineInformation section for serial number
+    const engineInfo = record.data?.engineInformation;
+    if (engineInfo) {
+      return engineInfo.engineSerialNo || engineInfo.serialNo || "N/A";
+    }
+    return "N/A";
+  };
+
   // Filter records by search term and date range
   const filteredRecords = records.filter((record) => {
-    // Filter by job order or customer search term
+    // Filter by job order, customer, or serial number search term
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
       const jobOrder = getJobOrder(record);
       const customer = getCustomer(record);
+      const serialNo = getSerialNo(record);
 
       // Check if job order matches
       const jobOrderMatches = jobOrder !== "N/A" && jobOrder.toLowerCase().includes(searchLower);
@@ -269,8 +280,11 @@ function RecordsPageContent() {
       // Check if customer matches
       const customerMatches = customer !== "N/A" && customer.toLowerCase().includes(searchLower);
 
-      // Return true if either matches
-      if (!jobOrderMatches && !customerMatches) {
+      // Check if serial number matches
+      const serialMatches = serialNo !== "N/A" && serialNo.toLowerCase().includes(searchLower);
+
+      // Return true if any matches
+      if (!jobOrderMatches && !customerMatches && !serialMatches) {
         return false;
       }
     }
@@ -394,7 +408,7 @@ function RecordsPageContent() {
               {/* Search Box */}
               <div className="flex-1">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Search by Job Order or Customer
+                  Search by Job Order or Customer or Serial
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -402,7 +416,7 @@ function RecordsPageContent() {
                   </div>
                   <input
                     type="text"
-                    placeholder="Enter Job Order or Customer..."
+                    placeholder="Enter Job Order, Customer, or Serial..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
@@ -541,6 +555,9 @@ function RecordsPageContent() {
                         Customer
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Serial No.
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Date Created
                       </th>
                       <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -556,6 +573,9 @@ function RecordsPageContent() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                           {getCustomer(record)}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                          {getSerialNo(record)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                           {new Date(record.dateCreated).toLocaleDateString(

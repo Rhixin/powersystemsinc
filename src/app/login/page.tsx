@@ -676,14 +676,6 @@ export default function AuthPage() {
 
                 <div className="mt-6 text-center space-y-2">
                   <p className="text-secondary-gray text-sm">
-                    <button
-                      onClick={() => router.push("/forgot-password")}
-                      className="text-primary-blue font-medium hover:text-primary-darkBlue transition-colors"
-                    >
-                      Forgot your password?
-                    </button>
-                  </p>
-                  <p className="text-secondary-gray text-sm">
                     Don&apos;t have an account?{" "}
                     <button
                       onClick={handleFlip}
