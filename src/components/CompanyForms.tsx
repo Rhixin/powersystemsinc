@@ -21,7 +21,7 @@ import {
   ChevronUpIcon,
   EllipsisHorizontalIcon
 } from "@heroicons/react/24/outline";
-import { CompanyCardsGridSkeleton } from "./Skeletons";
+import { CompanyCardsGridSkeleton, TableSkeleton } from "./Skeletons";
 import ConfirmationModal from "./ConfirmationModal";
 
 interface CompanyFormsProps {
