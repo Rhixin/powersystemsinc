@@ -161,22 +161,16 @@ export default function DashboardLayout({
       hasSubmenu: true,
       submenuType: "companies",
     },
+
     {
-      name: "Forms Creation",
-      icon: DocumentDuplicateIcon,
-      href: "/dashboard/forms",
-      hasSubmenu: true,
-      submenuType: "forms",
+      name: "Fill Up Form",
+      icon: DocumentTextIcon,
+      href: "/dashboard/fill-up-form",
     },
     {
       name: "Form Records",
       icon: ClipboardDocumentListIcon,
       href: "/dashboard/records",
-    },
-    {
-      name: "Fill Up Form",
-      icon: DocumentTextIcon,
-      href: "/dashboard/fill-up-form",
     },
   ];
 
