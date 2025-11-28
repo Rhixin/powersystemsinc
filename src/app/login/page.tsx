@@ -7,6 +7,7 @@ import Image from "next/image";
 import { EyeIcon, EyeSlashIcon, CheckIcon, XMarkIcon, ArrowRightIcon } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
 import { authService } from "@/services";
+import axios from "axios";
 
 // --- Modal Component ---
 interface ModalProps {
@@ -159,8 +160,10 @@ export default function AuthPage() {
   };
 
   const handlePreviousStep = () => {
+    console.log("handlePreviousStep called. Current step before:", currentStep);
     setError("");
     setCurrentStep(1);
+    console.log("currentStep set to:", 1);
   };
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
@@ -171,7 +174,13 @@ export default function AuthPage() {
     const loadingToast = toast.loading("Logging in...");
 
     try {
-      const result = await authService.login(loginFormData);
+      // Use local API route for Supabase login
+      const response = await axios.post("/api/auth/login", {
+        email: loginFormData.email,
+        password: loginFormData.password,
+      });
+
+      const result = response.data;
 
       if (result.success && result.data?.access_token && result.data?.user) {
         authService.saveToken(result.data?.access_token);
@@ -233,19 +242,20 @@ export default function AuthPage() {
     const loadingToast = toast.loading("Creating your account...");
 
     try {
-      const result = await authService.register(registerFormData);
-
-      if (result.success) {
+      const response = await axios.post("/api/auth/register", registerFormData);
+      
+      if (response.data.success) {
         toast.success("Registration successful! Please login.", {
           id: loadingToast,
           duration: 5000,
         });
-        openLogin(); // Switch to login modal
+        resetForms(); // This will clear form and set currentStep to 1
+        openLogin();
       } else {
-        toast.error(result.message || "Registration failed", {
+        toast.error(response.data.message || "Registration failed", {
           id: loadingToast,
         });
-        setError(result.message || "Registration failed");
+        setError(response.data.message || "Registration failed");
       }
     } catch (error: any) {
       const errorMessage =
@@ -367,15 +377,15 @@ export default function AuthPage() {
           )}
 
           <div>
-            <label htmlFor="login-username" className="block text-sm font-medium text-gray-700 mb-1.5">Username</label>
+            <label htmlFor="login-email" className="block text-sm font-medium text-gray-700 mb-1.5">Email Address</label>
             <input
-              type="text"
-              id="login-username"
+              type="email"
+              id="login-email"
               required
               value={loginFormData.email}
               onChange={(e) => setLoginFormData({ ...loginFormData, email: e.target.value })}
               className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-blue/20 focus:border-primary-blue transition-all bg-gray-50 focus:bg-white outline-none"
-              placeholder="Enter your username"
+              placeholder="Enter your email address"
             />
           </div>
 

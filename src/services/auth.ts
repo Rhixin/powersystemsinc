@@ -11,20 +11,6 @@ interface AuthResponse {
 }
 
 export const authService = {
-  // Register new user
-  register: async (data: RegisterForm): Promise<AuthResponse> => {
-    const response = await apiClient.post<AuthResponse>("/auth/register", {
-      email: data.email,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      username: data.username,
-      address: data.address,
-      phone: data.phone,
-      password: data.password,
-    });
-    return response.data;
-  },
-
   // Login user
   login: async (data: LoginForm): Promise<AuthResponse> => {
     const response = await apiClient.post<AuthResponse>("/auth/login", {
