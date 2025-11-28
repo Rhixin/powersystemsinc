@@ -11,12 +11,15 @@ import {
   PencilIcon,
   MagnifyingGlassIcon,
   XMarkIcon,
+  CalendarIcon,
+  FunnelIcon,
+  PrinterIcon
 } from "@heroicons/react/24/outline";
 import { formRecordService, companyFormService } from "@/services";
 import { CompanyForm } from "@/types";
 import toast from "react-hot-toast";
 import apiClient from "@/lib/axios";
-import { TableSkeleton, CardSkeleton } from "@/components/Skeletons";
+import { TableSkeleton } from "@/components/Skeletons";
 import ConfirmationModal from "@/components/ConfirmationModal";
 
 interface FormRecord {
@@ -35,12 +38,9 @@ interface FormRecord {
 
 function RecordsPageContent() {
   const router = useRouter();
-  const pathname = usePathname();
   const searchParams = useSearchParams();
   const [formTemplates, setFormTemplates] = useState<CompanyForm[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState<CompanyForm | null>(
-    null
-  );
+  const [selectedTemplate, setSelectedTemplate] = useState<CompanyForm | null>(null);
   const [records, setRecords] = useState<FormRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingRecords, setIsLoadingRecords] = useState(false);
@@ -70,7 +70,6 @@ function RecordsPageContent() {
     const folderId = searchParams.get("id");
 
     if (!folderId) {
-      // No ID in URL, show folders view
       if (selectedTemplate) {
         setSelectedTemplate(null);
         setRecords([]);
@@ -78,22 +77,12 @@ function RecordsPageContent() {
       return;
     }
 
-    // ID exists in URL
-    if (formTemplates.length === 0) {
-      // Templates not loaded yet, wait
-      return;
-    }
+    if (formTemplates.length === 0) return;
 
-    const template = formTemplates.find(
-      (t) => String(t.id) === String(folderId)
-    );
+    const template = formTemplates.find((t) => String(t.id) === String(folderId));
 
     if (template) {
-      if (
-        !selectedTemplate ||
-        String(selectedTemplate.id) !== String(template.id)
-      ) {
-        // Template found and different from current, load it
+      if (!selectedTemplate || String(selectedTemplate.id) !== String(template.id)) {
         setSelectedTemplate(template);
         loadRecordsForTemplate(template.id);
       }
@@ -119,9 +108,7 @@ function RecordsPageContent() {
   const loadRecordsForTemplate = async (templateId: string) => {
     try {
       setIsLoadingRecords(true);
-      const response = await apiClient.get(
-        `/forms?companyFormId=${templateId}`
-      );
+      const response = await apiClient.get(`/forms?companyFormId=${templateId}`);
       const recordsData = response.data?.data || response.data;
       setRecords(Array.isArray(recordsData) ? recordsData : []);
     } catch (error) {
@@ -134,12 +121,10 @@ function RecordsPageContent() {
   };
 
   const handleFolderClick = (template: CompanyForm) => {
-    // Update URL with query parameter
     router.push(`/dashboard/records/folders?id=${template.id}`);
   };
 
   const handleBackToFolders = () => {
-    // Update URL to remove query parameter
     router.push("/dashboard/records/folders");
     setSearchTerm("");
   };
@@ -150,14 +135,9 @@ function RecordsPageContent() {
       const response = await apiClient.get(`/pdf/report/${recordId}`, {
         responseType: "blob",
       });
-
-      // Create a blob from the PDF Stream
       const file = new Blob([response.data], { type: "application/pdf" });
       const fileURL = URL.createObjectURL(file);
-
-      // Open the PDF in a new window
       window.open(fileURL);
-
       toast.success("PDF generated successfully!", { id: loadingToast });
     } catch (error) {
       console.error("Error exporting PDF:", error);
@@ -183,24 +163,18 @@ function RecordsPageContent() {
 
   const confirmSaveEdit = async () => {
     if (!editingRecord) return;
-
     setIsSaving(true);
     try {
       const loadingToast = toast.loading("Saving changes...");
-
       await formRecordService.update(editingRecord.id, {
         jobOrder: editJobOrder,
         companyFormId: editingRecord.companyFormId,
         data: editFormData,
       });
-
       toast.success("Form updated successfully!", { id: loadingToast });
-
-      // Reload records
       if (selectedTemplate) {
         await loadRecordsForTemplate(selectedTemplate.id);
       }
-
       handleCloseEditModal();
     } catch (error) {
       console.error("Error updating form:", error);
@@ -210,11 +184,7 @@ function RecordsPageContent() {
     }
   };
 
-  const handleFieldChange = (
-    sectionKey: string,
-    fieldKey: string,
-    value: any
-  ) => {
+  const handleFieldChange = (sectionKey: string, fieldKey: string, value: any) => {
     setEditFormData((prev) => ({
       ...prev,
       [sectionKey]: {
@@ -224,40 +194,20 @@ function RecordsPageContent() {
     }));
   };
 
-  // Helper function to get all field values from nested data
-  const getAllFieldsFlat = (data: Record<string, any>): Record<string, any> => {
-    const flat: Record<string, any> = {};
-    Object.values(data).forEach((section) => {
-      if (typeof section === "object" && section !== null) {
-        Object.assign(flat, section);
-      }
-    });
-    return flat;
-  };
-
-  // Helper function to get job order from record
   const getJobOrder = (record: FormRecord): string => {
-    // Check top-level job_order field first
-    if (record.job_order) {
-      return record.job_order;
-    }
+    if (record.job_order) return record.job_order;
     return "N/A";
   };
 
-  // Helper function to get customer name from record
   const getCustomer = (record: FormRecord): string => {
-    // Check in basicInformation section for customer-related fields
     const basicInfo = record.data?.basicInformation;
     if (basicInfo) {
-      // Try different possible customer field names
       return basicInfo.customer || basicInfo.customerName || basicInfo.name || "N/A";
     }
     return "N/A";
   };
 
-  // Helper function to get serial number from record
   const getSerialNo = (record: FormRecord): string => {
-    // Check in engineInformation section for serial number
     const engineInfo = record.data?.engineInformation;
     if (engineInfo) {
       return engineInfo.engineSerialNo || engineInfo.serialNo || "N/A";
@@ -265,87 +215,70 @@ function RecordsPageContent() {
     return "N/A";
   };
 
-  // Filter records by search term and date range
   const filteredRecords = records.filter((record) => {
-    // Filter by job order, customer, or serial number search term
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
       const jobOrder = getJobOrder(record);
       const customer = getCustomer(record);
       const serialNo = getSerialNo(record);
-
-      // Check if job order matches
       const jobOrderMatches = jobOrder !== "N/A" && jobOrder.toLowerCase().includes(searchLower);
-
-      // Check if customer matches
       const customerMatches = customer !== "N/A" && customer.toLowerCase().includes(searchLower);
-
-      // Check if serial number matches
       const serialMatches = serialNo !== "N/A" && serialNo.toLowerCase().includes(searchLower);
-
-      // Return true if any matches
-      if (!jobOrderMatches && !customerMatches && !serialMatches) {
-        return false;
-      }
+      if (!jobOrderMatches && !customerMatches && !serialMatches) return false;
     }
-
-    // Filter by date range
     if (startDate || endDate) {
       const recordDate = new Date(record.dateCreated);
-
       if (startDate) {
         const start = new Date(startDate);
         start.setHours(0, 0, 0, 0);
-        if (recordDate < start) {
-          return false;
-        }
+        if (recordDate < start) return false;
       }
-
       if (endDate) {
         const end = new Date(endDate);
         end.setHours(23, 59, 59, 999);
-        if (recordDate > end) {
-          return false;
-        }
+        if (recordDate > end) return false;
       }
     }
-
     return true;
   });
 
-  // Pagination
   const totalPages = Math.ceil(filteredRecords.length / recordsPerPage);
   const startIndex = (currentPage - 1) * recordsPerPage;
   const endIndex = startIndex + recordsPerPage;
   const paginatedRecords = filteredRecords.slice(startIndex, endIndex);
 
-  // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, startDate, endDate]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-[1600px] mx-auto animate-fadeIn">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center gap-4">
           {selectedTemplate && (
             <button
               onClick={handleBackToFolders}
-              className="flex items-center text-blue-600 hover:text-blue-800"
+              className="p-2 text-gray-500 hover:text-[#2B4C7E] hover:bg-blue-50 rounded-full transition-colors"
+              title="Back to Folders"
             >
-              <ChevronLeftIcon className="h-5 w-5 mr-1" />
-              Back
+              <ChevronLeftIcon className="h-6 w-6" />
             </button>
           )}
-          <h1 className="text-2xl font-bold text-gray-900">
-            {selectedTemplate ? selectedTemplate.name : "Form Records"}
-          </h1>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+              {selectedTemplate ? selectedTemplate.name : "Form Records"}
+            </h1>
+            <p className="text-sm text-gray-500 mt-0.5">
+              {selectedTemplate 
+                ? "View and manage submitted records for this template." 
+                : "Select a form template to view its records."}
+            </p>
+          </div>
         </div>
         {selectedTemplate && (
-          <div className="text-sm text-gray-600">
-            Total Records:{" "}
-            <span className="font-semibold">{records.length}</span>
+          <div className="bg-white px-4 py-2 rounded-full shadow-sm border border-gray-100 text-sm text-gray-600">
+            Total Records: <span className="font-bold text-[#2B4C7E]">{records.length}</span>
           </div>
         )}
       </div>
@@ -354,44 +287,43 @@ function RecordsPageContent() {
       {!selectedTemplate && (
         <>
           {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {[1, 2, 3, 4].map((i) => (
-                <div
-                  key={i}
-                  className="bg-white rounded-lg shadow-md p-6 animate-pulse"
-                >
-                  <div className="flex flex-col items-center text-center space-y-3">
-                    <div className="h-20 w-20 bg-gray-300 rounded"></div>
-                    <div className="h-6 bg-gray-300 rounded w-3/4"></div>
-                    <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                  </div>
-                </div>
+                <div key={i} className="bg-white rounded-xl shadow-sm p-6 h-40 animate-pulse border border-gray-100"></div>
               ))}
             </div>
           ) : formTemplates.length === 0 ? (
-            <div className="bg-white rounded-lg shadow p-12 text-center">
-              <FolderIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500 text-lg">
-                No form templates available. Create form templates first.
-              </p>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-16 text-center">
+              <FolderIcon className="h-20 w-20 text-gray-200 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900">No Templates Found</h3>
+              <p className="text-gray-500 mt-2">Create a form template to start collecting records.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {formTemplates.map((template) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {formTemplates.map((template, index) => (
                 <div
                   key={template.id}
                   onClick={() => handleFolderClick(template)}
-                  className="bg-white rounded-lg shadow-md p-6 hover:shadow-xl transition-all cursor-pointer border-2 border-transparent hover:border-blue-500"
+                  className="group bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer relative overflow-hidden"
+                  style={{ animationDelay: `${index * 50}ms` }}
                 >
-                  <div className="flex flex-col items-center text-center space-y-3">
-                    <FolderIcon className="h-20 w-20 text-yellow-500" />
-                    <h3 className="text-lg font-semibold text-gray-900">
-                      {template.name}
-                    </h3>
-                    <span className="text-xs px-3 py-1 bg-blue-100 text-blue-800 rounded-full">
+                  <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-blue-500/5 to-purple-500/5 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110" />
+                  
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="p-3 bg-blue-50 text-[#2B4C7E] rounded-xl group-hover:bg-[#2B4C7E] group-hover:text-white transition-colors shadow-sm">
+                      <FolderIcon className="h-8 w-8" />
+                    </div>
+                    <span className="text-xs font-medium px-2.5 py-1 bg-gray-100 text-gray-600 rounded-full group-hover:bg-blue-50 group-hover:text-[#2B4C7E] transition-colors">
                       {template.formType}
                     </span>
                   </div>
+                  
+                  <h3 className="text-lg font-bold text-gray-900 mb-1 group-hover:text-[#2B4C7E] transition-colors line-clamp-1">
+                    {template.name}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    View records &rarr;
+                  </p>
                 </div>
               ))}
             </div>
@@ -401,615 +333,270 @@ function RecordsPageContent() {
 
       {/* Records Table View */}
       {selectedTemplate && (
-        <>
-          {/* Search and Filters */}
-          <div className="bg-transparent rounded-lg p-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden animate-slideUp">
+          {/* Toolbar */}
+          <div className="p-5 border-b border-gray-100 bg-gray-50/50">
             <div className="flex flex-col lg:flex-row gap-4">
-              {/* Search Box */}
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Search by Job Order or Customer or Serial
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="Enter Job Order, Customer, or Serial..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  />
-                  {searchTerm && (
-                    <button
-                      onClick={() => setSearchTerm("")}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                    >
-                      <XMarkIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                    </button>
-                  )}
+              <div className="flex-1 relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
                 </div>
+                <input
+                  type="text"
+                  placeholder="Search by Job Order, Customer, or Serial..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="block w-full pl-10 pr-10 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all bg-white"
+                />
+                {searchTerm && (
+                  <button onClick={() => setSearchTerm("")} className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
+                    <XMarkIcon className="h-5 w-5" />
+                  </button>
+                )}
               </div>
 
-              {/* Date Range Filter */}
-              <div className="lg:w-auto">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Filter by Date Range
-                </label>
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <div className="relative">
-                    <input
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm"
-                      placeholder="Start Date"
-                    />
-                  </div>
-                  <div className="flex items-center justify-center text-gray-400 hidden sm:block">
-                    <span className="text-sm font-medium">to</span>
-                  </div>
-                  <div className="relative">
-                    <input
-                      type="date"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors text-sm"
-                      placeholder="End Date"
-                    />
-                  </div>
-                  {(startDate || endDate) && (
-                    <button
-                      onClick={() => {
-                        setStartDate("");
-                        setEndDate("");
-                      }}
-                      className="px-4 py-2.5 text-sm text-white bg-red-600 hover:bg-red-700 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-                    >
-                      <XMarkIcon className="h-4 w-4" />
-                      Clear
-                    </button>
-                  )}
+              <div className="flex items-center gap-3 bg-white p-1 rounded-xl border border-gray-200">
+                <div className="relative">
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="pl-3 pr-2 py-1.5 text-sm border-none focus:ring-0 bg-transparent text-gray-600"
+                  />
                 </div>
+                <span className="text-gray-300">|</span>
+                <div className="relative">
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="pl-2 pr-3 py-1.5 text-sm border-none focus:ring-0 bg-transparent text-gray-600"
+                  />
+                </div>
+                {(startDate || endDate) && (
+                  <button
+                    onClick={() => { setStartDate(""); setEndDate(""); }}
+                    className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Clear dates"
+                  >
+                    <XMarkIcon className="h-4 w-4" />
+                  </button>
+                )}
               </div>
             </div>
-
-            {/* Active Filters Display */}
-            {(searchTerm || startDate || endDate) && (
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-medium text-gray-700">
-                    Active Filters:
-                  </span>
-                  {searchTerm && (
-                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                      Search: "{searchTerm}"
-                      <button
-                        onClick={() => setSearchTerm("")}
-                        className="hover:bg-blue-200 rounded-full p-0.5"
-                      >
-                        <XMarkIcon className="h-3.5 w-3.5" />
-                      </button>
-                    </span>
-                  )}
-                  {startDate && (
-                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
-                      From: {new Date(startDate).toLocaleDateString()}
-                      <button
-                        onClick={() => setStartDate("")}
-                        className="hover:bg-green-200 rounded-full p-0.5"
-                      >
-                        <XMarkIcon className="h-3.5 w-3.5" />
-                      </button>
-                    </span>
-                  )}
-                  {endDate && (
-                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
-                      To: {new Date(endDate).toLocaleDateString()}
-                      <button
-                        onClick={() => setEndDate("")}
-                        className="hover:bg-green-200 rounded-full p-0.5"
-                      >
-                        <XMarkIcon className="h-3.5 w-3.5" />
-                      </button>
-                    </span>
-                  )}
-                  <button
-                    onClick={() => {
-                      setSearchTerm("");
-                      setStartDate("");
-                      setEndDate("");
-                    }}
-                    className="text-sm text-gray-600 hover:text-gray-900 underline ml-2"
-                  >
-                    Clear all
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
 
-          {/* Records Table */}
+          {/* Table */}
           {isLoadingRecords ? (
-            <TableSkeleton rows={5} />
+            <div className="p-6"><TableSkeleton rows={5} /></div>
           ) : filteredRecords.length === 0 ? (
-            <div className="bg-white rounded-lg shadow p-12 text-center">
-              <DocumentTextIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-              <p className="text-gray-500 text-lg">
-                {searchTerm
-                  ? "No records found matching your search."
-                  : "No records for this form template yet."}
-              </p>
+            <div className="p-12 text-center">
+              <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <DocumentTextIcon className="h-8 w-8 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900">No records found</h3>
+              <p className="text-gray-500 mt-1">Try adjusting your search or date filters.</p>
             </div>
           ) : (
-            <>
-              <div className="bg-white rounded-lg shadow overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Job Order
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Customer
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Serial No.
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Date Created
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {paginatedRecords.map((record) => (
-                      <tr key={record.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {getJobOrder(record)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                          {getCustomer(record)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                          {getSerialNo(record)}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                          {new Date(record.dateCreated).toLocaleDateString(
-                            "en-US",
-                            {
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                            }
-                          )}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <div className="flex justify-end space-x-3">
-                            <button
-                              onClick={() => setSelectedRecord(record)}
-                              className="text-blue-600 hover:text-blue-900 inline-flex items-center"
-                            >
-                              <EyeIcon className="h-5 w-5 mr-1" />
-                              View
-                            </button>
-                            <button
-                              onClick={() => handleOpenEditModal(record)}
-                              className="text-orange-600 hover:text-orange-900 inline-flex items-center"
-                            >
-                              <PencilIcon className="h-5 w-5 mr-1" />
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => handleExportPDF(record.id)}
-                              className="text-green-600 hover:text-green-900 inline-flex items-center"
-                            >
-                              <ArrowDownTrayIcon className="h-5 w-5 mr-1" />
-                              Export
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 sm:px-6">
-                  <div className="flex-1 flex justify-between sm:hidden">
-                    <button
-                      onClick={() =>
-                        setCurrentPage((prev) => Math.max(prev - 1, 1))
-                      }
-                      disabled={currentPage === 1}
-                      className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Previous
-                    </button>
-                    <button
-                      onClick={() =>
-                        setCurrentPage((prev) => Math.min(prev + 1, totalPages))
-                      }
-                      disabled={currentPage === totalPages}
-                      className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Next
-                    </button>
-                  </div>
-                  <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                    <div>
-                      <p className="text-sm text-gray-700">
-                        Showing{" "}
-                        <span className="font-medium">{startIndex + 1}</span> to{" "}
-                        <span className="font-medium">
-                          {Math.min(endIndex, filteredRecords.length)}
-                        </span>{" "}
-                        of{" "}
-                        <span className="font-medium">
-                          {filteredRecords.length}
-                        </span>{" "}
-                        results
-                      </p>
-                    </div>
-                    <div>
-                      <nav
-                        className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"
-                        aria-label="Pagination"
-                      >
-                        <button
-                          onClick={() =>
-                            setCurrentPage((prev) => Math.max(prev - 1, 1))
-                          }
-                          disabled={currentPage === 1}
-                          className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Previous
-                        </button>
-                        {Array.from(
-                          { length: totalPages },
-                          (_, i) => i + 1
-                        ).map((page) => (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-100">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Job Order</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Customer</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Serial No.</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Date Created</th>
+                    <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-100">
+                  {paginatedRecords.map((record) => (
+                    <tr key={record.id} className="hover:bg-blue-50/30 transition-colors group">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{getJobOrder(record)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{getCustomer(record)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 font-mono">{getSerialNo(record)}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        <div className="flex items-center">
+                          <CalendarIcon className="h-4 w-4 mr-1.5 text-gray-400" />
+                          {new Date(record.dateCreated).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex items-center justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
-                            key={page}
-                            onClick={() => setCurrentPage(page)}
-                            className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                              page === currentPage
-                                ? "z-10 bg-blue-50 border-blue-500 text-blue-600"
-                                : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
-                            }`}
+                            onClick={() => setSelectedRecord(record)}
+                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="View Details"
                           >
-                            {page}
+                            <EyeIcon className="h-4 w-4" />
                           </button>
-                        ))}
-                        <button
-                          onClick={() =>
-                            setCurrentPage((prev) =>
-                              Math.min(prev + 1, totalPages)
-                            )
-                          }
-                          disabled={currentPage === totalPages}
-                          className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Next
-                        </button>
-                      </nav>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </>
+                          <button
+                            onClick={() => handleOpenEditModal(record)}
+                            className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                            title="Edit Record"
+                          >
+                            <PencilIcon className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => handleExportPDF(record.id)}
+                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                            title="Download PDF"
+                          >
+                            <PrinterIcon className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
-        </>
-      )}
 
-      {/* View Modal */}
-      {selectedRecord && (
-        <>
-          {/* Backdrop with blur */}
-          <div
-            onClick={() => setSelectedRecord(null)}
-            className="fixed inset-0 z-40 overflow-hidden"
-            style={{
-              backgroundColor: "rgba(0, 0, 0, 0.3)",
-              backdropFilter: "blur(4px)",
-              WebkitBackdropFilter: "blur(4px)",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              width: "100vw",
-              height: "100vh",
-            }}
-          ></div>
-
-          {/* Modal content */}
-          <div
-            className="fixed inset-0 flex items-start justify-center p-4 z-50 overflow-y-auto"
-            onClick={(e) =>
-              e.target === e.currentTarget && setSelectedRecord(null)
-            }
-          >
-            <div className="bg-white shadow-lg max-w-[900px] w-full my-8">
-              {/* Close button */}
-              <div className="flex justify-end p-4">
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex items-center justify-between">
+              <p className="text-sm text-gray-500">
+                Showing <span className="font-medium">{startIndex + 1}</span> to <span className="font-medium">{Math.min(endIndex, filteredRecords.length)}</span> of <span className="font-medium">{filteredRecords.length}</span> results
+              </p>
+              <div className="flex space-x-2">
                 <button
-                  onClick={() => setSelectedRecord(null)}
-                  className="text-gray-400 hover:text-gray-600 text-3xl font-bold leading-none"
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-white disabled:opacity-50 transition-colors"
                 >
-                  &times;
+                  Previous
+                </button>
+                <button
+                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-white disabled:opacity-50 transition-colors"
+                >
+                  Next
                 </button>
               </div>
+            </div>
+          )}
+        </div>
+      )}
 
-              {/* Company Header */}
-              <div className="text-center py-6 px-8 border-b-2 border-gray-300">
-                <h1 className="text-2xl font-bold text-gray-900 mb-1">
-                  Power Systems, Incorporated
-                </h1>
-                <p className="text-xs text-gray-600 mb-1">
-                  2nd Floor TOPY's Place #3 Calle Industria cor. Economia
-                  Street, Bagumbayan, Libis, Quezon City
-                </p>
-                <p className="text-xs text-gray-600 mb-1">
-                  Tel: (+63-2) 687-9275 to 78 | Fax: (+63-2) 687-9279
-                </p>
-                <p className="text-xs text-gray-600 mb-2">
-                  Email: sales@psi-deutz.com
-                </p>
-                <p className="text-xs text-gray-500 uppercase tracking-wide">
-                  NAVOTAS • BACOLOD • CEBU • CAGAYAN • DAVAO • GEN SAN •
-                  ZAMBOANGA • ILO-ILO • SURIGAO
+      {/* View/Edit Modal (Shared Structure) */}
+      {(selectedRecord || editingRecord) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(0, 0, 0, 0.5)", backdropFilter: "blur(4px)" }}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col animate-slideUp overflow-hidden">
+            
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-white z-10">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">
+                  {editingRecord ? "Edit Record" : (selectedTemplate?.name || "Record Details")}
+                </h3>
+                <p className="text-sm text-gray-500">
+                  {editingRecord ? `Editing Job Order: ${editJobOrder || 'N/A'}` : "View record details below."}
                 </p>
               </div>
+              <button 
+                onClick={() => { setSelectedRecord(null); handleCloseEditModal(); }}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <XMarkIcon className="h-6 w-6" />
+              </button>
+            </div>
 
-              {/* Form Title */}
-              <div className="text-center py-4 bg-white">
-                <h2
-                  className="text-2xl font-bold uppercase tracking-wide"
-                  style={{ color: "#2B4C7E" }}
-                >
-                  {selectedTemplate?.name || "Form Record"}
-                </h2>
-              </div>
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-8 bg-gray-50/50">
+              <div className="bg-white shadow-sm border border-gray-200 rounded-xl p-8 max-w-3xl mx-auto">
+                {/* Company Header (Only on View) */}
+                {!editingRecord && (
+                  <div className="text-center mb-8 pb-6 border-b-2 border-gray-100">
+                    <h1 className="text-2xl font-bold text-gray-900 mb-2">Power Systems, Incorporated</h1>
+                    <p className="text-xs text-gray-500 mb-1">2nd Floor TOPY's Place #3 Calle Industria cor. Economia Street, Bagumbayan, Libis, Quezon City</p>
+                    <p className="text-xs text-gray-500">Tel: (+63-2) 687-9275 to 78 | Email: sales@psi-deutz.com</p>
+                  </div>
+                )}
 
-              {/* Form Body */}
-              <div className="px-8 py-6">
+                {/* Fields */}
                 <div className="space-y-8">
-                  {Object.entries(selectedRecord.data).map(
-                    ([sectionName, sectionData]) => {
-                      const sectionLabel = sectionName
-                        .replace(/([A-Z])/g, " $1")
-                        .trim();
-                      return (
-                        <div key={sectionName}>
-                          <h3
-                            className="text-lg font-bold text-gray-900 mb-4 pb-2 border-b-2"
-                            style={{ color: "#2B4C7E" }}
-                          >
-                            {sectionLabel.charAt(0).toUpperCase() +
-                              sectionLabel.slice(1)}
-                          </h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                            {typeof sectionData === "object" &&
-                              sectionData !== null &&
-                              Object.entries(sectionData).map(
-                                ([fieldName, fieldValue]) => {
-                                  const fieldLabel = fieldName
-                                    .replace(/([A-Z])/g, " $1")
-                                    .trim();
-                                  const isTextarea =
-                                    String(fieldValue || "").length > 100;
-                                  return (
-                                    <div
-                                      key={fieldName}
-                                      className={
-                                        isTextarea ? "md:col-span-2" : ""
-                                      }
-                                    >
-                                      <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                                        {fieldLabel.charAt(0).toUpperCase() +
-                                          fieldLabel.slice(1)}
-                                      </label>
-                                      {isTextarea ? (
-                                        <div className="w-full px-2 py-1.5 border-0 border-b-2 border-gray-300 bg-transparent text-gray-900 whitespace-pre-wrap">
-                                          {String(fieldValue || "-")}
-                                        </div>
-                                      ) : (
-                                        <div className="w-full px-2 py-1.5 border-0 border-b-2 border-gray-300 bg-transparent text-gray-900">
-                                          {typeof fieldValue === "object"
-                                            ? JSON.stringify(fieldValue)
-                                            : String(fieldValue || "-")}
-                                        </div>
-                                      )}
-                                    </div>
-                                  );
-                                }
-                              )}
-                          </div>
+                  {Object.entries(editingRecord ? editFormData : selectedRecord?.data || {}).map(([sectionName, sectionData]) => {
+                    const sectionLabel = sectionName.replace(/([A-Z])/g, " $1").trim();
+                    return (
+                      <div key={sectionName}>
+                        <h4 className="text-sm font-bold text-[#2B4C7E] uppercase tracking-wider mb-4 border-b border-gray-100 pb-2">
+                          {sectionLabel}
+                        </h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {typeof sectionData === "object" && sectionData !== null && Object.entries(sectionData).map(([fieldName, fieldValue]) => {
+                            const fieldLabel = fieldName.replace(/([A-Z])/g, " $1").trim();
+                            const isTextarea = String(fieldValue || "").length > 100;
+                            
+                            return (
+                              <div key={fieldName} className={isTextarea ? "md:col-span-2" : ""}>
+                                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">
+                                  {fieldLabel}
+                                </label>
+                                {editingRecord ? (
+                                  isTextarea ? (
+                                    <textarea
+                                      value={String(fieldValue || "")}
+                                      onChange={(e) => handleFieldChange(sectionName, fieldName, e.target.value)}
+                                      rows={4}
+                                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                    />
+                                  ) : (
+                                    <input
+                                      type="text"
+                                      value={typeof fieldValue === "object" ? JSON.stringify(fieldValue) : String(fieldValue || "")}
+                                      onChange={(e) => handleFieldChange(sectionName, fieldName, e.target.value)}
+                                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                    />
+                                  )
+                                ) : (
+                                  <div className="text-sm text-gray-900 font-medium break-words">
+                                    {typeof fieldValue === "object" ? JSON.stringify(fieldValue) : String(fieldValue || "-")}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
-                      );
-                    }
-                  )}
-                </div>
-
-                {/* Action buttons */}
-                <div className="flex items-center justify-end space-x-3 pt-6 mt-6 border-t-2 border-gray-300">
-                  <button
-                    onClick={() => handleExportPDF(selectedRecord.id)}
-                    className="flex items-center space-x-2 px-8 py-3 text-white rounded-lg font-semibold hover:opacity-90 transition-colors shadow-md"
-                    style={{ backgroundColor: "#2B4C7E" }}
-                  >
-                    <ArrowDownTrayIcon className="h-5 w-5" />
-                    <span>Export PDF</span>
-                  </button>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
-          </div>
-        </>
-      )}
 
-      {/* Edit Modal */}
-      {editingRecord && selectedTemplate && (
-        <>
-          {/* Backdrop with blur */}
-          <div
-            onClick={handleCloseEditModal}
-            className="fixed inset-0 z-40 overflow-hidden"
-            style={{
-              backgroundColor: "rgba(0, 0, 0, 0.3)",
-              backdropFilter: "blur(4px)",
-              WebkitBackdropFilter: "blur(4px)",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              width: "100vw",
-              height: "100vh",
-            }}
-          ></div>
-
-          {/* Modal content */}
-          <div
-            className="fixed inset-0 flex items-start justify-center p-4 z-50 overflow-y-auto"
-            onClick={(e) =>
-              e.target === e.currentTarget && handleCloseEditModal()
-            }
-          >
-            <div className="bg-white rounded-lg shadow-xl max-w-[900px] w-full my-8">
-              {/* Header */}
-              <div className="flex items-center justify-between p-6 border-b border-gray-200">
-                <h3 className="text-xl font-bold text-gray-900">
-                  Edit Form Record
-                </h3>
-                <button
-                  onClick={handleCloseEditModal}
-                  className="text-gray-400 hover:text-gray-600 text-3xl font-bold leading-none"
-                >
-                  &times;
-                </button>
-              </div>
-
-              {/* Form Body */}
-              <div className="px-6 py-6 max-h-[70vh] overflow-y-auto">
-                {/* Job Order - Read only */}
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Job Order
-                  </label>
-                  <div className="text-gray-900 font-medium">
-                    {editJobOrder || "N/A"}
-                  </div>
-                </div>
-
-                {/* Dynamic Form Sections */}
-                <div className="space-y-6">
-                  {Object.entries(editFormData).map(
-                    ([sectionName, sectionData]) => {
-                      const sectionLabel = sectionName
-                        .replace(/([A-Z])/g, " $1")
-                        .trim();
-                      return (
-                        <div
-                          key={sectionName}
-                          className="border border-gray-200 rounded-lg p-4"
-                        >
-                          <h4 className="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">
-                            {sectionLabel.charAt(0).toUpperCase() +
-                              sectionLabel.slice(1)}
-                          </h4>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {typeof sectionData === "object" &&
-                              sectionData !== null &&
-                              Object.entries(sectionData).map(
-                                ([fieldName, fieldValue]) => {
-                                  const fieldLabel = fieldName
-                                    .replace(/([A-Z])/g, " $1")
-                                    .trim();
-                                  const isTextarea =
-                                    String(fieldValue || "").length > 100;
-                                  return (
-                                    <div
-                                      key={fieldName}
-                                      className={
-                                        isTextarea ? "md:col-span-2" : ""
-                                      }
-                                    >
-                                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        {fieldLabel.charAt(0).toUpperCase() +
-                                          fieldLabel.slice(1)}
-                                      </label>
-                                      {isTextarea ? (
-                                        <textarea
-                                          value={String(fieldValue || "")}
-                                          onChange={(e) =>
-                                            handleFieldChange(
-                                              sectionName,
-                                              fieldName,
-                                              e.target.value
-                                            )
-                                          }
-                                          rows={4}
-                                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                        />
-                                      ) : (
-                                        <input
-                                          type="text"
-                                          value={
-                                            typeof fieldValue === "object"
-                                              ? JSON.stringify(fieldValue)
-                                              : String(fieldValue || "")
-                                          }
-                                          onChange={(e) =>
-                                            handleFieldChange(
-                                              sectionName,
-                                              fieldName,
-                                              e.target.value
-                                            )
-                                          }
-                                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                        />
-                                      )}
-                                    </div>
-                                  );
-                                }
-                              )}
-                          </div>
-                        </div>
-                      );
-                    }
-                  )}
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200">
-                <button
-                  onClick={handleCloseEditModal}
-                  disabled={isSaving}
-                  className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
-                >
-                  Cancel
-                </button>
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-gray-100 bg-white flex justify-end gap-3">
+              <button
+                onClick={() => { setSelectedRecord(null); handleCloseEditModal(); }}
+                className="px-5 py-2.5 border border-gray-200 rounded-xl text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+              >
+                Close
+              </button>
+              {editingRecord && (
                 <button
                   onClick={handleRequestSave}
                   disabled={isSaving}
-                  className="px-6 py-2 text-white rounded-lg hover:opacity-90 transition-colors disabled:opacity-50"
-                  style={{ backgroundColor: "#2B4C7E" }}
+                  className="px-5 py-2.5 bg-[#2B4C7E] text-white rounded-xl font-medium hover:bg-[#1A2F4F] shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
                 >
-                  Save Changes
+                  {isSaving ? "Saving..." : "Save Changes"}
                 </button>
-              </div>
+              )}
+              {!editingRecord && selectedRecord && (
+                <button
+                  onClick={() => handleExportPDF(selectedRecord.id)}
+                  className="flex items-center px-5 py-2.5 bg-[#2B4C7E] text-white rounded-xl font-medium hover:bg-[#1A2F4F] shadow-lg hover:shadow-xl transition-all"
+                >
+                  <PrinterIcon className="h-5 w-5 mr-2" />
+                  Export PDF
+                </button>
+              )}
             </div>
           </div>
-        </>
+        </div>
       )}
 
-      {/* Confirmation Modal */}
       <ConfirmationModal
         isOpen={showSaveConfirm}
         onClose={() => setShowSaveConfirm(false)}

@@ -14,8 +14,14 @@ import {
   MagnifyingGlassIcon,
   XMarkIcon,
   PlusIcon,
+  DocumentTextIcon,
+  ListBulletIcon,
+  Square3Stack3DIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  EllipsisHorizontalIcon
 } from "@heroicons/react/24/outline";
-import { TableSkeleton } from "./Skeletons";
+import { CompanyCardsGridSkeleton } from "./Skeletons";
 import ConfirmationModal from "./ConfirmationModal";
 
 interface CompanyFormsProps {
@@ -51,6 +57,7 @@ export default function CompanyForms({ forms, setForms }: CompanyFormsProps) {
   const [showAddSectionModal, setShowAddSectionModal] = useState(false);
   const [newSectionData, setNewSectionData] = useState({ name: "", label: "" });
   const [draggedSection, setDraggedSection] = useState<string | null>(null);
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
 
   // Load companies and customers on mount
   useEffect(() => {
@@ -85,7 +92,7 @@ export default function CompanyForms({ forms, setForms }: CompanyFormsProps) {
     } catch (error) {
       toast.error("Failed to load forms");
       console.error("Error loading forms:", error);
-      setForms([]); // Set empty array on error
+      setForms([]); 
     }
   };
 
@@ -110,21 +117,9 @@ export default function CompanyForms({ forms, setForms }: CompanyFormsProps) {
       setCustomers([]);
     }
   };
-  const engines = [
-    { id: "1", model: "Engine Model A" },
-    { id: "2", model: "Engine Model B" },
-  ];
 
   const fieldTypes: FormFieldType[] = [
-    "text",
-    "email",
-    "number",
-    "date",
-    "textarea",
-    "select",
-    "checkbox",
-    "radio",
-    "file",
+    "text", "email", "number", "date", "textarea", "select", "checkbox", "radio", "file",
   ];
 
   // Get all sections sorted by order
@@ -140,10 +135,11 @@ export default function CompanyForms({ forms, setForms }: CompanyFormsProps) {
       engineId: "",
     });
     setDynamicFields([]);
-    // Initialize with one default section
     setCustomSections([
       { id: "basicInformation", name: "basicInformation", label: "Basic Information", order: 0, sectionNumber: 1 }
     ]);
+    // Expand the default section
+    setExpandedSections({ "basicInformation": true });
     setShowModal(true);
   };
 
@@ -158,51 +154,39 @@ export default function CompanyForms({ forms, setForms }: CompanyFormsProps) {
       engineId: form.engineId || "",
     });
 
-    // Convert backend fields format to frontend dynamicFields format
     let convertedFields: DynamicField[] = [];
     if (form.fields && Array.isArray(form.fields)) {
-      convertedFields = form.fields.map(
-        (field, index) => ({
-          id: `field-${index}`,
-          name: field.fieldName,
-          label: field.label || field.fieldName,
-          type: field.fieldType as FormFieldType,
-          required: field.required,
-          placeholder: field.placeholder,
-          options: field.options,
-          defaultValue: field.defaultValue,
-          validation: field.validation,
-          order: index,
-          section: field.section,
-        })
-      );
+      convertedFields = form.fields.map((field, index) => ({
+        id: `field-${index}`,
+        name: field.fieldName,
+        label: field.label || field.fieldName,
+        type: field.fieldType as FormFieldType,
+        required: field.required,
+        placeholder: field.placeholder,
+        options: field.options,
+        defaultValue: field.defaultValue,
+        validation: field.validation,
+        order: index,
+        section: field.section,
+      }));
       setDynamicFields(convertedFields);
     } else if (form.dynamicFields && Array.isArray(form.dynamicFields)) {
-      // Fallback to old format
       convertedFields = form.dynamicFields;
       setDynamicFields(form.dynamicFields);
     } else {
       setDynamicFields([]);
     }
 
-    // Build sections from fields (extract unique sections)
     if (form.sections && Array.isArray(form.sections) && form.sections.length > 0) {
-      // If sections are provided, use them
       setCustomSections(form.sections);
+      // Expand all sections by default in edit mode
+      const expanded: Record<string, boolean> = {};
+      form.sections.forEach(s => expanded[s.id] = true);
+      setExpandedSections(expanded);
     } else if (convertedFields.length > 0) {
-      // Extract unique section names from fields
-      const uniqueSectionNames = Array.from(
-        new Set(convertedFields.map(f => f.section || "basicInformation"))
-      );
-
-      // Create section objects with auto-generated labels
+      const uniqueSectionNames = Array.from(new Set(convertedFields.map(f => f.section || "basicInformation")));
       const generatedSections: CustomSection[] = uniqueSectionNames.map((sectionName, index) => {
-        // Convert camelCase to Title Case (e.g., 'newSection' -> 'New Section')
-        const label = sectionName
-          .replace(/([A-Z])/g, ' $1') // Add space before capital letters
-          .replace(/^./, str => str.toUpperCase()) // Capitalize first letter
-          .trim();
-
+        const label = sectionName.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase()).trim();
         return {
           id: sectionName,
           name: sectionName,
@@ -211,13 +195,15 @@ export default function CompanyForms({ forms, setForms }: CompanyFormsProps) {
           sectionNumber: index + 1
         };
       });
-
       setCustomSections(generatedSections);
+      const expanded: Record<string, boolean> = {};
+      generatedSections.forEach(s => expanded[s.id] = true);
+      setExpandedSections(expanded);
     } else {
-      // No fields, initialize with one default section
       setCustomSections([
         { id: "basicInformation", name: "basicInformation", label: "Basic Information", order: 0, sectionNumber: 1 }
       ]);
+      setExpandedSections({ "basicInformation": true });
     }
 
     setShowModal(true);
@@ -243,6 +229,7 @@ export default function CompanyForms({ forms, setForms }: CompanyFormsProps) {
     };
     setDynamicFields([...currentFields, newField]);
     setShowAddFieldMenu({ ...showAddFieldMenu, [section]: false });
+    setExpandedSections({ ...expandedSections, [allSections.find(s => s.name === section)?.id || ""]: true });
   };
 
   const handleAddCustomerFields = (section: FormSection) => {
@@ -257,6 +244,7 @@ export default function CompanyForms({ forms, setForms }: CompanyFormsProps) {
     ];
     setDynamicFields([...currentFields, ...customerFields]);
     setShowAddFieldMenu({ ...showAddFieldMenu, [section]: false });
+    setExpandedSections({ ...expandedSections, [allSections.find(s => s.name === section)?.id || ""]: true });
     toast.success("Customer fields added successfully!");
   };
 
@@ -284,6 +272,7 @@ export default function CompanyForms({ forms, setForms }: CompanyFormsProps) {
     ];
     setDynamicFields([...currentFields, ...engineFields]);
     setShowAddFieldMenu({ ...showAddFieldMenu, [section]: false });
+    setExpandedSections({ ...expandedSections, [allSections.find(s => s.name === section)?.id || ""]: true });
     toast.success("Engine fields added successfully!");
   };
 
@@ -330,6 +319,7 @@ export default function CompanyForms({ forms, setForms }: CompanyFormsProps) {
 
     setCustomSections([...customSections, newSection]);
     setNewSectionData({ name: "", label: "" });
+    setExpandedSections({ ...expandedSections, [newSection.id]: true });
     setShowAddSectionModal(false);
     toast.success("Section added successfully!");
   };
@@ -354,6 +344,10 @@ export default function CompanyForms({ forms, setForms }: CompanyFormsProps) {
     setDynamicFields(dynamicFields.filter(f => f.section !== section.name));
 
     toast.success("Section removed successfully!");
+  };
+
+  const handleToggleSection = (sectionId: string) => {
+    setExpandedSections(prev => ({ ...prev, [sectionId]: !prev[sectionId] }));
   };
 
   const handleDragStart = (sectionId: string) => {
