@@ -1,5 +1,45 @@
-import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { NextResponse } from "next/server";
+import { supabase } from "@/lib/supabase";
+
+export async function GET(request: Request) {
+  try {
+    const { data, error } = await supabase
+      .from("deutz_commissioning_report")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Supabase error fetching commissioning reports:", error);
+      return NextResponse.json(
+        { success: false, message: error.message },
+        { status: 500 }
+      );
+    }
+
+    // Map to consistent format for frontend
+    const formRecords = data.map((record: any) => ({
+      id: record.id,
+      companyFormId: null, // Not applicable for direct table queries
+      job_order: record.job_order_no,
+      data: record,
+      dateCreated: record.created_at,
+      dateUpdated: record.updated_at,
+      companyForm: {
+        id: "deutz-commissioning",
+        name: "Deutz Commissioning Report",
+        formType: "deutz-commissioning",
+      },
+    }));
+
+    return NextResponse.json({ success: true, data: formRecords });
+  } catch (error: any) {
+    console.error("API error fetching commissioning reports:", error);
+    return NextResponse.json(
+      { success: false, message: "Internal Server Error" },
+      { status: 500 }
+    );
+  }
+}
 
 export async function POST(request: Request) {
   try {
@@ -83,20 +123,25 @@ export async function POST(request: Request) {
 
     // Generate Job Order No.
     const { count, error: countError } = await supabase
-      .from('deutz_commissioning_report')
-      .select('*', { count: 'exact', head: true });
+      .from("deutz_commissioning_report")
+      .select("*", { count: "exact", head: true });
 
     if (countError) {
-      console.error('Error fetching record count:', countError);
-      return NextResponse.json({ error: 'Failed to generate Job Order No.' }, { status: 500 });
+      console.error("Error fetching record count:", countError);
+      return NextResponse.json(
+        { error: "Failed to generate Job Order No." },
+        { status: 500 }
+      );
     }
 
     const currentYear = new Date().getFullYear();
     const nextSequence = (count || 0) + 1;
-    const generatedJobOrderNo = `DEUTZ-COM-${currentYear}-${nextSequence.toString().padStart(4, '0')}`;
+    const generatedJobOrderNo = `DEUTZ-COM-${currentYear}-${nextSequence
+      .toString()
+      .padStart(4, "0")}`;
 
     const { data, error } = await supabase
-      .from('deutz_commissioning_report')
+      .from("deutz_commissioning_report")
       .insert([
         {
           reporting_person_name,
@@ -177,13 +222,66 @@ export async function POST(request: Request) {
       .select();
 
     if (error) {
-      console.error('Error inserting data:', error);
+      console.error("Error inserting data:", error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ message: 'Report submitted successfully', data }, { status: 201 });
+    return NextResponse.json(
+      { message: "Report submitted successfully", data },
+      { status: 201 }
+    );
   } catch (error) {
-    console.error('Error processing request:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    console.error("Error processing request:", error);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Record ID is required" },
+        { status: 400 }
+      );
+    }
+
+    const body = await request.json();
+
+    // Update the record in Supabase
+    const { data, error } = await supabase
+      .from("deutz_commissioning_report")
+      .update(body)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error updating record:", error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    if (!data) {
+      return NextResponse.json(
+        { error: "Record not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(
+      { message: "Report updated successfully", data },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("Error processing request:", error);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
   }
 }

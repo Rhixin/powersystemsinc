@@ -1,5 +1,46 @@
 import { NextResponse } from 'next/server';
 import { getServiceSupabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
+
+export async function GET(request: Request) {
+  try {
+    const { data, error } = await supabase
+      .from('deutz_service_report')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Supabase error fetching service reports:', error);
+      return NextResponse.json(
+        { success: false, message: error.message },
+        { status: 500 }
+      );
+    }
+
+    // Map to consistent format for frontend
+    const formRecords = data.map((record: any) => ({
+      id: record.id,
+      companyFormId: null, // Not applicable for direct table queries
+      job_order: record.job_order,
+      data: record,
+      dateCreated: record.created_at,
+      dateUpdated: record.updated_at,
+      companyForm: {
+        id: 'deutz-service',
+        name: 'Deutz Service Report',
+        formType: 'deutz-service',
+      },
+    }));
+
+    return NextResponse.json({ success: true, data: formRecords });
+  } catch (error: any) {
+    console.error('API error fetching service reports:', error);
+    return NextResponse.json(
+      { success: false, message: 'Internal Server Error' },
+      { status: 500 }
+    );
+  }
+}
 
 export async function POST(request: Request) {
   try {
@@ -151,5 +192,52 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Error processing request:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json(
+        { error: "Record ID is required" },
+        { status: 400 }
+      );
+    }
+
+    const body = await request.json();
+
+    // Update the record in Supabase
+    const { data, error } = await supabase
+      .from("deutz_service_report")
+      .update(body)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error updating record:", error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    if (!data) {
+      return NextResponse.json(
+        { error: "Record not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(
+      { message: "Service Report updated successfully", data },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("Error processing request:", error);
+    return NextResponse.json(
+      { error: "Internal Server Error" },
+      { status: 500 }
+    );
   }
 }
