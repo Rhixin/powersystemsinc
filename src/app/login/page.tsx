@@ -7,7 +7,7 @@ import Image from "next/image";
 import { EyeIcon, EyeSlashIcon, CheckIcon, XMarkIcon, ArrowRightIcon } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
 import { authService } from "@/services";
-import axios from "axios";
+import apiClient from "@/lib/axios";
 
 // --- Modal Component ---
 interface ModalProps {
@@ -175,7 +175,7 @@ export default function AuthPage() {
 
     try {
       // Use local API route for Supabase login
-      const response = await axios.post("/api/auth/login", {
+      const response = await apiClient.post("/auth/login", {
         email: loginFormData.email,
         password: loginFormData.password,
       });
@@ -183,8 +183,9 @@ export default function AuthPage() {
       const result = response.data;
 
       if (result.success && result.data?.access_token && result.data?.user) {
-        authService.saveToken(result.data?.access_token);
-        authService.saveUser(result.data?.user);
+        const { access_token, user } = result.data;
+        authService.saveToken(access_token);
+        authService.saveUser(user);
 
         toast.success("Login successful! Redirecting...", {
           id: loadingToast,

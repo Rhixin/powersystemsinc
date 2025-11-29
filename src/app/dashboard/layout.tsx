@@ -18,8 +18,7 @@ import {
   ChevronRightIcon,
 } from "@heroicons/react/24/outline";
 import { Company } from "@/types";
-import { companyService, companyFormService, authService } from "@/services";
-import { useAuth } from "@/hooks/useAuth";
+import apiClient from "@/lib/axios";
 import Chatbot from "@/components/Chatbot";
 
 export default function DashboardLayout({
@@ -27,9 +26,6 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Protect this route - redirect to login if no token
-  useAuth();
-
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -41,7 +37,8 @@ export default function DashboardLayout({
   const [activeCompanyTab, setActiveCompanyTab] = useState<string | null>(null);
   const [activeFormTab, setActiveFormTab] = useState<string | null>(null);
   const [activeProductTab, setActiveProductTab] = useState<string | null>(null);
-  const [userName, setUserName] = useState<string>("Admin User");
+  const [userName, setUserName] = useState<string>("");
+  const [userLoading, setUserLoading] = useState(true);
 
   // Load companies and forms on mount
   useEffect(() => {
@@ -50,10 +47,20 @@ export default function DashboardLayout({
   }, []);
 
   const loadUserData = () => {
-    const user = authService.getUser();
-    if (user) {
-      setUserName(`${user.firstName} ${user.lastName}`);
+    setUserLoading(true);
+    const userStr = localStorage.getItem("user");
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      console.log("User from localStorage:", user);
+      if (user && user.firstName && user.lastName) {
+        setUserName(`${user.firstName} ${user.lastName}`);
+      } else if (user && user.username) {
+        setUserName(user.username);
+      } else if (user && user.email) {
+        setUserName(user.email);
+      }
     }
+    setUserLoading(false);
   };
 
   // Auto-expand companies menu and sync active tab when on companies page
@@ -115,8 +122,8 @@ export default function DashboardLayout({
 
   const loadCompanies = async () => {
     try {
-      const response = await companyService.getAll();
-      const companiesData = response.data || [];
+      const response = await apiClient.get("/companies");
+      const companiesData = response.data.data || [];
       setCompanies(Array.isArray(companiesData) ? companiesData : []);
     } catch (error) {
       console.error("Error loading companies:", error);
@@ -125,8 +132,9 @@ export default function DashboardLayout({
   };
 
   const handleLogout = async () => {
-    // Clear auth token and user data
-    await authService.logout();
+    // Clear local storage or any auth tokens
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("user");
     // Redirect to login page
     router.push("/login");
   };
@@ -206,7 +214,7 @@ export default function DashboardLayout({
               </span>
             </div>
           )}
-          
+
           {/* Mobile Close Button */}
           <button
             onClick={() => setSidebarOpen(false)}
@@ -221,15 +229,20 @@ export default function DashboardLayout({
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
           className="hidden lg:flex absolute -right-3 top-24 bg-white text-[#2B4C7E] p-1 rounded-full shadow-md border border-gray-100 hover:bg-gray-50 transition-transform hover:scale-110 z-50"
         >
-          <ChevronLeftIcon className={`h-4 w-4 transition-transform duration-300 ${sidebarCollapsed ? "rotate-180" : ""}`} />
+          <ChevronLeftIcon
+            className={`h-4 w-4 transition-transform duration-300 ${
+              sidebarCollapsed ? "rotate-180" : ""
+            }`}
+          />
         </button>
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto overflow-x-hidden scrollbar-none">
           {navigation.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
-            
+            const isActive =
+              pathname === item.href || pathname.startsWith(item.href + "/");
+
             if (item.hasSubmenu) {
               const isExpanded =
                 item.submenuType === "companies"
@@ -262,9 +275,21 @@ export default function DashboardLayout({
                     }`}
                     title={sidebarCollapsed ? item.name : ""}
                   >
-                    <div className={`flex items-center ${sidebarCollapsed ? "justify-center w-full" : "space-x-3"}`}>
-                      <Icon className={`h-6 w-6 flex-shrink-0 ${isActive ? "text-blue-300" : "group-hover:text-blue-300 transition-colors"}`} />
-                      {!sidebarCollapsed && <span className="font-medium text-sm">{item.name}</span>}
+                    <div
+                      className={`flex items-center ${
+                        sidebarCollapsed ? "justify-center w-full" : "space-x-3"
+                      }`}
+                    >
+                      <Icon
+                        className={`h-6 w-6 flex-shrink-0 ${
+                          isActive
+                            ? "text-blue-300"
+                            : "group-hover:text-blue-300 transition-colors"
+                        }`}
+                      />
+                      {!sidebarCollapsed && (
+                        <span className="font-medium text-sm">{item.name}</span>
+                      )}
                     </div>
                     {!sidebarCollapsed && (
                       <ChevronDownIcon
@@ -279,9 +304,11 @@ export default function DashboardLayout({
                   </button>
 
                   {/* Submenu */}
-                  <div 
+                  <div
                     className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                      isExpanded && !sidebarCollapsed ? "max-h-[500px] opacity-100 mt-1" : "max-h-0 opacity-0"
+                      isExpanded && !sidebarCollapsed
+                        ? "max-h-[500px] opacity-100 mt-1"
+                        : "max-h-0 opacity-0"
                     }`}
                   >
                     <div className="pl-10 pr-2 space-y-1 border-l border-white/10 ml-6 my-1">
@@ -289,7 +316,10 @@ export default function DashboardLayout({
                       {item.submenuType === "companies" && (
                         <>
                           <button
-                            onClick={() => { router.push(item.href); setSidebarOpen(false); }}
+                            onClick={() => {
+                              router.push(item.href);
+                              setSidebarOpen(false);
+                            }}
                             className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors truncate ${
                               pathname === item.href && !activeCompanyTab
                                 ? "text-white font-medium bg-white/10"
@@ -306,7 +336,8 @@ export default function DashboardLayout({
                                 setSidebarOpen(false);
                               }}
                               className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors truncate ${
-                                pathname.includes("/companies") && activeCompanyTab === String(company.id)
+                                pathname.includes("/companies") &&
+                                activeCompanyTab === String(company.id)
                                   ? "text-white font-medium bg-white/10"
                                   : "text-blue-200/80 hover:text-white hover:bg-white/5"
                               }`}
@@ -320,9 +351,13 @@ export default function DashboardLayout({
                       {item.submenuType === "products" && (
                         <>
                           <button
-                            onClick={() => { router.push(`${item.href}?tab=engines`); setSidebarOpen(false); }}
+                            onClick={() => {
+                              router.push(`${item.href}?tab=engines`);
+                              setSidebarOpen(false);
+                            }}
                             className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors truncate ${
-                              pathname.includes("/products") && activeProductTab === "engines"
+                              pathname.includes("/products") &&
+                              activeProductTab === "engines"
                                 ? "text-white font-medium bg-white/10"
                                 : "text-blue-200/80 hover:text-white hover:bg-white/5"
                             }`}
@@ -330,9 +365,13 @@ export default function DashboardLayout({
                             Engines
                           </button>
                           <button
-                            onClick={() => { router.push(`${item.href}?tab=pumps`); setSidebarOpen(false); }}
+                            onClick={() => {
+                              router.push(`${item.href}?tab=pumps`);
+                              setSidebarOpen(false);
+                            }}
                             className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors truncate ${
-                              pathname.includes("/products") && activeProductTab === "pumps"
+                              pathname.includes("/products") &&
+                              activeProductTab === "pumps"
                                 ? "text-white font-medium bg-white/10"
                                 : "text-blue-200/80 hover:text-white hover:bg-white/5"
                             }`}
@@ -361,8 +400,16 @@ export default function DashboardLayout({
                 } ${sidebarCollapsed ? "justify-center" : "space-x-3"}`}
                 title={sidebarCollapsed ? item.name : ""}
               >
-                <Icon className={`h-6 w-6 flex-shrink-0 ${isActive ? "text-blue-300" : "group-hover:text-blue-300 transition-colors"}`} />
-                {!sidebarCollapsed && <span className="font-medium text-sm">{item.name}</span>}
+                <Icon
+                  className={`h-6 w-6 flex-shrink-0 ${
+                    isActive
+                      ? "text-blue-300"
+                      : "group-hover:text-blue-300 transition-colors"
+                  }`}
+                />
+                {!sidebarCollapsed && (
+                  <span className="font-medium text-sm">{item.name}</span>
+                )}
                 {sidebarCollapsed && isActive && (
                   <div className="absolute left-0 w-1 h-8 bg-blue-400 rounded-r-full top-1/2 -translate-y-1/2" />
                 )}
@@ -373,13 +420,19 @@ export default function DashboardLayout({
 
         {/* User Profile Section */}
         <div className="p-4 border-t border-white/10 bg-[#1A2F4F]/50">
-          <div className={`flex items-center ${sidebarCollapsed ? "justify-center" : "space-x-3"}`}>
+          <div
+            className={`flex items-center ${
+              sidebarCollapsed ? "justify-center" : "space-x-3"
+            }`}
+          >
             <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold shadow-md border-2 border-white/20">
               {userName.charAt(0).toUpperCase()}
             </div>
             {!sidebarCollapsed && (
               <div className="flex-1 overflow-hidden">
-                <p className="text-sm font-semibold text-white truncate">{userName}</p>
+                <p className="text-sm font-semibold text-white truncate">
+                  {userName}
+                </p>
                 <p className="text-xs text-blue-200 truncate">Administrator</p>
               </div>
             )}
@@ -394,13 +447,13 @@ export default function DashboardLayout({
             )}
           </div>
           {sidebarCollapsed && (
-             <button
-             onClick={handleLogout}
-             className="mt-4 w-full p-2 flex justify-center text-blue-200 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
-             title="Logout"
-           >
-             <ArrowLeftOnRectangleIcon className="h-6 w-6" />
-           </button>
+            <button
+              onClick={handleLogout}
+              className="mt-4 w-full p-2 flex justify-center text-blue-200 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+              title="Logout"
+            >
+              <ArrowLeftOnRectangleIcon className="h-6 w-6" />
+            </button>
           )}
         </div>
       </aside>
@@ -442,8 +495,19 @@ export default function DashboardLayout({
 // Helper Component for Menu Icons (Optional internal usage)
 function ChevronLeftIcon({ className }: { className?: string }) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className={className}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      strokeWidth={2.5}
+      stroke="currentColor"
+      className={className}
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M15.75 19.5L8.25 12l7.5-7.5"
+      />
     </svg>
   );
 }
