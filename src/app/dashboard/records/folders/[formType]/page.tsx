@@ -130,7 +130,32 @@ export default function FormRecordsPage() {
   const handleExportPDF = async (recordId: string) => {
     try {
       const loadingToast = toast.loading("Generating PDF...");
-      const response = await axios.get(`/pdf/report/${recordId}`, {
+
+      const formConfig = formTypeEndpoints[normalizedFormType];
+      if (!formConfig) {
+        toast.error("Invalid form type", { id: loadingToast });
+        return;
+      }
+
+      // Map form type aliases to actual PDF route names
+      const pdfFormTypeMap: Record<string, string> = {
+        "deutz-commissioning": "deutz-commissioning",
+        "commission": "deutz-commissioning",
+        "commissioning": "deutz-commissioning",
+        "deutz-service": "deutz-service",
+        "service": "deutz-service",
+      };
+
+      const pdfFormType = pdfFormTypeMap[normalizedFormType];
+      if (!pdfFormType) {
+        toast.error("PDF export not available for this form type", { id: loadingToast });
+        return;
+      }
+
+      // Determine PDF endpoint based on form type
+      const pdfEndpoint = `/api/pdf/${pdfFormType}/${recordId}`;
+
+      const response = await axios.get(pdfEndpoint, {
         responseType: "blob",
       });
       const file = new Blob([response.data], { type: "application/pdf" });
