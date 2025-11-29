@@ -1,7 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
+import apiClient from "@/lib/axios";
+
+interface User {
+  id: string;
+  fullName: string;
+}
 
 export default function DeutzServiceForm() {
   const [formData, setFormData] = useState({
@@ -49,6 +55,23 @@ export default function DeutzServiceForm() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [users, setUsers] = useState<User[]>([]);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await apiClient.get('/users');
+        if (response.data.success) {
+          setUsers(response.data.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch users", error);
+        toast.error("Failed to load users for signature fields.");
+      }
+    };
+
+    fetchUsers();
+  }, []);
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -542,33 +565,36 @@ export default function DeutzServiceForm() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 bg-gray-50 p-8 rounded-lg border border-gray-100">
             <div className="flex flex-col justify-end">
-              <Input
+              <Select
                 label="Service Technician"
                 name="service_technician"
                 value={formData.service_technician}
                 onChange={handleChange}
+                options={users.map(user => user.fullName)}
               />
               <p className="text-xs text-center text-gray-400 mt-1 italic">
                 Signed by Technician
               </p>
             </div>
             <div className="flex flex-col justify-end">
-              <Input
+              <Select
                 label="Approved By"
                 name="approved_by"
                 value={formData.approved_by}
                 onChange={handleChange}
+                options={users.map(user => user.fullName)}
               />
               <p className="text-xs text-center text-gray-400 mt-1 italic">
                 Authorized Signature
               </p>
             </div>
             <div className="flex flex-col justify-end">
-              <Input
+              <Select
                 label="Acknowledged By"
                 name="acknowledged_by"
                 value={formData.acknowledged_by}
                 onChange={handleChange}
+                options={users.map(user => user.fullName)}
               />
               <p className="text-xs text-center text-gray-400 mt-1 italic">
                 Customer Signature
@@ -713,6 +739,7 @@ const Select = ({ label, name, value, onChange, options }: SelectProps) => (
         onChange={onChange}
         className="w-full bg-white border border-gray-300 text-gray-900 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block p-2.5 appearance-none shadow-sm"
       >
+        <option value="">Select a user</option>
         {options.map((opt: string) => (
           <option key={opt} value={opt}>
             {opt}

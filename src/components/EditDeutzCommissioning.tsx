@@ -1,15 +1,20 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import toast from "react-hot-toast";
-import axios from "axios";
+import apiClient from "@/lib/axios";
 
 interface EditDeutzCommissioningProps {
   data: Record<string, any>;
   recordId: string;
   onClose: () => void;
   onSaved: () => void;
+}
+
+interface User {
+  id: string;
+  fullName: string;
 }
 
 // Helper Components - Moved outside to prevent re-creation on every render
@@ -65,6 +70,50 @@ const TextArea = ({
   </div>
 );
 
+const Select = ({
+  label,
+  name,
+  value,
+  onChange,
+  options,
+}: {
+  label: string;
+  name: string;
+  value: any;
+  onChange: (name: string, value: any) => void;
+  options: string[];
+}) => (
+  <div className="flex flex-col w-full">
+    <label className="text-xs font-bold text-gray-600 mb-1.5 uppercase tracking-wide">
+      {label}
+    </label>
+    <div className="relative">
+      <select
+        name={name}
+        value={value || ""}
+        onChange={(e) => onChange(name, e.target.value)}
+        className="w-full bg-white border border-gray-300 text-gray-900 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block p-2.5 appearance-none shadow-sm"
+      >
+        <option value="">Select a user</option>
+        {options.map((opt: string) => (
+          <option key={opt} value={opt}>
+            {opt}
+          </option>
+        ))}
+      </select>
+      <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+        <svg
+          className="fill-current h-4 w-4"
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 20 20"
+        >
+          <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" />
+        </svg>
+      </div>
+    </div>
+  </div>
+);
+
 export default function EditDeutzCommissioning({
   data,
   recordId,
@@ -73,6 +122,23 @@ export default function EditDeutzCommissioning({
 }: EditDeutzCommissioningProps) {
   const [formData, setFormData] = useState(data);
   const [isSaving, setIsSaving] = useState(false);
+  const [users, setUsers] = useState<User[]>([]);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await apiClient.get('/users');
+        if (response.data.success) {
+          setUsers(response.data.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch users", error);
+        toast.error("Failed to load users for signature fields.");
+      }
+    };
+
+    fetchUsers();
+  }, []);
 
   const handleChange = (name: string, value: any) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -84,8 +150,8 @@ export default function EditDeutzCommissioning({
     const loadingToast = toast.loading("Saving changes...");
 
     try {
-      const response = await axios.patch(
-        `/api/forms/deutz-commissioning?id=${recordId}`,
+      const response = await apiClient.patch(
+        `/forms/deutz-commissioning?id=${recordId}`,
         formData
       );
 
@@ -750,23 +816,26 @@ export default function EditDeutzCommissioning({
                 </h4>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <Input
+                <Select
                   label="Attending Technician"
                   name="attending_technician"
                   value={formData.attending_technician}
                   onChange={handleChange}
+                  options={users.map(user => user.fullName)}
                 />
-                <Input
+                <Select
                   label="Approved By"
                   name="approved_by"
                   value={formData.approved_by}
                   onChange={handleChange}
+                  options={users.map(user => user.fullName)}
                 />
-                <Input
+                <Select
                   label="Acknowledged By"
                   name="acknowledged_by"
                   value={formData.acknowledged_by}
                   onChange={handleChange}
+                  options={users.map(user => user.fullName)}
                 />
               </div>
             </div>

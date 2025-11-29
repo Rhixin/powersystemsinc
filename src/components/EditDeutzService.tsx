@@ -1,15 +1,20 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import toast from 'react-hot-toast';
-import axios from 'axios';
+import apiClient from '@/lib/axios';
 
 interface EditDeutzServiceProps {
   data: Record<string, any>;
   recordId: string;
   onClose: () => void;
   onSaved: () => void;
+}
+
+interface User {
+  id: string;
+  fullName: string;
 }
 
 // Helper Components - Moved outside to prevent re-creation on every render
@@ -49,6 +54,7 @@ const Select = ({ label, name, value, options, onChange }: { label: string; name
         onChange={(e) => onChange(name, e.target.value)}
         className="w-full bg-white border border-gray-300 text-gray-900 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block p-2.5 appearance-none shadow-sm"
       >
+        <option value="">Select a user</option>
         {options.map((opt: string) => (
           <option key={opt} value={opt}>{opt}</option>
         ))}
@@ -63,6 +69,23 @@ const Select = ({ label, name, value, options, onChange }: { label: string; name
 export default function EditDeutzService({ data, recordId, onClose, onSaved }: EditDeutzServiceProps) {
   const [formData, setFormData] = useState(data);
   const [isSaving, setIsSaving] = useState(false);
+  const [users, setUsers] = useState<User[]>([]);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await apiClient.get('/users');
+        if (response.data.success) {
+          setUsers(response.data.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch users", error);
+        toast.error("Failed to load users for signature fields.");
+      }
+    };
+
+    fetchUsers();
+  }, []);
 
   const handleChange = (name: string, value: any) => {
     setFormData(prev => ({ ...prev, [name]: value }));
@@ -74,7 +97,7 @@ export default function EditDeutzService({ data, recordId, onClose, onSaved }: E
     const loadingToast = toast.loading('Saving changes...');
 
     try {
-      const response = await axios.patch(`/api/forms/deutz-service?id=${recordId}`, formData);
+      const response = await apiClient.patch(`/forms/deutz-service?id=${recordId}`, formData);
 
       if (response.status === 200) {
         toast.success('Service Report updated successfully!', { id: loadingToast });
@@ -207,9 +230,27 @@ export default function EditDeutzService({ data, recordId, onClose, onSaved }: E
                 <h4 className="text-sm font-bold text-[#2B4C7E] uppercase tracking-wider">Signatures</h4>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <Input label="Service Technician" name="service_technician" value={formData.service_technician} onChange={handleChange} />
-                <Input label="Approved By" name="approved_by" value={formData.approved_by} onChange={handleChange} />
-                <Input label="Acknowledged By" name="acknowledged_by" value={formData.acknowledged_by} onChange={handleChange} />
+                <Select
+                  label="Service Technician"
+                  name="service_technician"
+                  value={formData.service_technician}
+                  onChange={handleChange}
+                  options={users.map(user => user.fullName)}
+                />
+                <Select
+                  label="Approved By"
+                  name="approved_by"
+                  value={formData.approved_by}
+                  onChange={handleChange}
+                  options={users.map(user => user.fullName)}
+                />
+                <Select
+                  label="Acknowledged By"
+                  name="acknowledged_by"
+                  value={formData.acknowledged_by}
+                  onChange={handleChange}
+                  options={users.map(user => user.fullName)}
+                />
               </div>
             </div>
           </div>
