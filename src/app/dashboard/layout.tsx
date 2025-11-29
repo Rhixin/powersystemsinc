@@ -38,7 +38,6 @@ export default function DashboardLayout({
   const [formsExpanded, setFormsExpanded] = useState(false);
   const [productsExpanded, setProductsExpanded] = useState(false);
   const [companies, setCompanies] = useState<Company[]>([]);
-  const [companyForms, setCompanyForms] = useState<any[]>([]);
   const [activeCompanyTab, setActiveCompanyTab] = useState<string | null>(null);
   const [activeFormTab, setActiveFormTab] = useState<string | null>(null);
   const [activeProductTab, setActiveProductTab] = useState<string | null>(null);
@@ -47,7 +46,6 @@ export default function DashboardLayout({
   // Load companies and forms on mount
   useEffect(() => {
     loadCompanies();
-    loadCompanyForms();
     loadUserData();
   }, []);
 
@@ -123,17 +121,6 @@ export default function DashboardLayout({
     } catch (error) {
       console.error("Error loading companies:", error);
       setCompanies([]);
-    }
-  };
-
-  const loadCompanyForms = async () => {
-    try {
-      const response = await companyFormService.getAll();
-      const formsData = response.data || [];
-      setCompanyForms(Array.isArray(formsData) ? formsData : []);
-    } catch (error) {
-      console.error("Error loading company forms:", error);
-      setCompanyForms([]);
     }
   };
 
@@ -352,27 +339,6 @@ export default function DashboardLayout({
                           >
                             Pumps
                           </button>
-                        </>
-                      )}
-
-                      {item.submenuType === "forms" && (
-                        <>
-                          {companyForms.map((form) => (
-                            <button
-                              key={form.id}
-                              onClick={() => {
-                                router.push(`${item.href}?tab=${form.id}`);
-                                setSidebarOpen(false);
-                              }}
-                              className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors truncate ${
-                                pathname.includes("/forms") && activeFormTab === String(form.id)
-                                  ? "text-white font-medium bg-white/10"
-                                  : "text-blue-200/80 hover:text-white hover:bg-white/5"
-                              }`}
-                            >
-                              {form.name}
-                            </button>
-                          ))}
                         </>
                       )}
                     </div>
