@@ -17,15 +17,13 @@ export async function GET() {
       );
     }
 
-    // Map database columns to frontend Customer interface if necessary
-    // Assuming Supabase table columns match interface (name, equipment, customer, contact_person, address, email)
-    // Adjust mapping as per your actual Supabase schema
+    // Map database columns to frontend Customer interface
     const customers = data.map((item: any) => ({
       id: item.id,
       name: item.name,
       equipment: item.equipment,
       customer: item.customer,
-      contactPerson: item.contactperson, // Note: database probably uses snake_case
+      contactPerson: item.contactperson, // Map to camelCase
       address: item.address,
       email: item.email,
       createdAt: item.created_at,
@@ -65,7 +63,7 @@ export async function POST(request: Request) {
           name,
           equipment,
           customer,
-          contactperson: contactPerson, // Mapping to snake_case for DB
+          contactperson: contactPerson, // Mapping to DB column name
           address,
           email,
         },
@@ -87,7 +85,7 @@ export async function POST(request: Request) {
       name: data.name,
       equipment: data.equipment,
       customer: data.customer,
-      contactPerson: data.contact_person,
+      contactPerson: data.contactperson,
       address: data.address,
       email: data.email,
       createdAt: data.created_at,

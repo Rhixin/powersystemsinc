@@ -9,12 +9,12 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
     
-    // Map frontend camelCase to backend snake_case
+    // Map frontend camelCase to database column names
     const updateData: any = {};
     if (body.name !== undefined) updateData.name = body.name;
     if (body.equipment !== undefined) updateData.equipment = body.equipment;
     if (body.customer !== undefined) updateData.customer = body.customer;
-    if (body.contactPerson !== undefined) updateData.contact_person = body.contactPerson;
+    if (body.contactPerson !== undefined) updateData.contactperson = body.contactPerson;
     if (body.address !== undefined) updateData.address = body.address;
     if (body.email !== undefined) updateData.email = body.email;
     
@@ -34,12 +34,12 @@ export async function PUT(
       );
     }
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       data: {
         ...data,
-        contactPerson: data.contact_person // Remap for frontend
-      } 
+        contactPerson: data.contactperson // Remap for frontend
+      }
     });
   } catch (error: any) {
     return NextResponse.json(
