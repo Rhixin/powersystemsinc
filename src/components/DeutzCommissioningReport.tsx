@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import toast from 'react-hot-toast';
 
 export default function DeutzCommissioningReport() {
   const [formData, setFormData] = useState({
@@ -30,8 +31,6 @@ export default function DeutzCommissioningReport() {
     fuel_pump_code: '',
     turbo_model: '',
     turbo_serial_no: '',
-    controller_brand: '',
-    controller_model: '',
     // Inspection Prior Test
     inspection_summary: '',
     check_oil_level: '',
@@ -75,6 +74,8 @@ export default function DeutzCommissioningReport() {
     oil_filter_part_no: '',
     fuel_filter_part_no: '',
     pre_fuel_filter_part_no: '',
+    controller_brand: '',
+    controller_model: '',
     remarks: '',
     recommendation: '',
     attending_technician: '',
@@ -82,15 +83,127 @@ export default function DeutzCommissioningReport() {
     acknowledged_by: '',
   });
 
+  const [isLoading, setIsLoading] = useState(false);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Commissioning Report submitted:', formData);
-    alert('Form submitted (console log only for now)');
+    setIsLoading(true);
+    const loadingToastId = toast.loading('Submitting report...');
+    
+    // Map form state to API schema
+    const payload = {
+      ...formData,
+      summary: formData.inspection_summary,
+      comments_action: formData.inspection_comments,
+    };
+
+    try {
+      const response = await fetch('/api/forms/deutz-commissioning', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Success:', result);
+        toast.success('Commissioning Report submitted successfully!', { id: loadingToastId });
+        setFormData({
+          reporting_person_name: '',
+          telephone_fax: '',
+          equipment_name: '',
+          running_hours: '',
+          customer_name: '',
+          contact_person: '',
+          address: '',
+          email_address: '',
+          commissioning_location: '',
+          commissioning_date: '',
+          engine_model: '',
+          engine_serial_no: '',
+          commissioning_no: '',
+          equipment_manufacturer: '',
+          equipment_no: '',
+          equipment_type: '',
+          output: '',
+          revolutions: '',
+          main_effective_pressure: '',
+          lube_oil_type: '',
+          fuel_type: '',
+          cooling_water_additives: '',
+          fuel_pump_serial_no: '',
+          fuel_pump_code: '',
+          turbo_model: '',
+          turbo_serial_no: '',
+          // Inspection Prior Test
+          inspection_summary: '',
+          check_oil_level: '',
+          check_air_filter: '',
+          check_hoses_clamps: '',
+          check_engine_support: '',
+          check_v_belt: '',
+          check_water_level: '',
+          crankshaft_end_play: '',
+          inspector: '',
+          inspection_comments: '',
+          // Operational Readings
+          rpm_idle_speed: '',
+          rpm_full_speed: '',
+          oil_pressure_idle: '',
+          oil_pressure_full: '',
+          oil_temperature: '',
+          engine_smoke: '',
+          engine_vibration: '',
+          check_engine_leakage: '',
+          // Cylinder
+          cylinder_head_temp: '',
+          cylinder_no: '',
+          cylinder_a1: '',
+          cylinder_a2: '',
+          cylinder_a3: '',
+          cylinder_a4: '',
+          cylinder_a5: '',
+          cylinder_a6: '',
+          cylinder_b1: '',
+          cylinder_b2: '',
+          cylinder_b3: '',
+          cylinder_b4: '',
+          cylinder_b5: '',
+          cylinder_b6: '',
+          // Parts Reference
+          starter_part_no: '',
+          alternator_part_no: '',
+          v_belt_part_no: '',
+          air_filter_part_no: '',
+          oil_filter_part_no: '',
+          fuel_filter_part_no: '',
+          pre_fuel_filter_part_no: '',
+          controller_brand: '',
+          controller_model: '',
+          remarks: '',
+          recommendation: '',
+          attending_technician: '',
+          approved_by: '',
+          acknowledged_by: '',
+        });
+      } else {
+        const errorData = await response.json();
+        console.error('Error:', errorData);
+        toast.error(`Failed to submit report: ${errorData.error || 'Unknown error'}`, { id: loadingToastId });
+      }
+    } catch (error) {
+      console.error('Network error:', error);
+      toast.error('A network error occurred. Please try again.', { id: loadingToastId });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -336,11 +449,18 @@ export default function DeutzCommissioningReport() {
             <button type="button" className="mr-4 bg-white text-gray-700 font-bold py-3 px-6 rounded-lg border border-gray-300 shadow-sm hover:bg-gray-50 transition duration-150">
                 Cancel
             </button>
-            <button type="submit" className="bg-[#2B4C7E] hover:bg-[#1A2F4F] text-white font-bold py-3 px-10 rounded-lg shadow-md transition duration-150 flex items-center">
+            <button type="submit" className="bg-[#2B4C7E] hover:bg-[#1A2F4F] text-white font-bold py-3 px-10 rounded-lg shadow-md transition duration-150 flex items-center" disabled={isLoading}>
                 <span className="mr-2">Submit Commissioning Report</span>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
+                {isLoading ? (
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                )}
             </button>
         </div>
       </form>
