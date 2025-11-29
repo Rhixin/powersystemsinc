@@ -243,7 +243,7 @@ export default function AuthPage() {
     const loadingToast = toast.loading("Creating your account...");
 
     try {
-      const response = await axios.post("/api/auth/register", registerFormData);
+      const response = await apiClient.post("/auth/register", registerFormData);
       
       if (response.data.success) {
         toast.success("Registration successful! Please login.", {
