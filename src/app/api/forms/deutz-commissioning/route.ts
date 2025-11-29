@@ -93,7 +93,7 @@ export async function POST(request: Request) {
 
     const currentYear = new Date().getFullYear();
     const nextSequence = (count || 0) + 1;
-    const generatedJobOrderNo = `JO-${currentYear}-${nextSequence.toString().padStart(4, '0')}`;
+    const generatedJobOrderNo = `DEUTZ-COM-${currentYear}-${nextSequence.toString().padStart(4, '0')}`;
 
     const { data, error } = await supabase
       .from('deutz_commissioning_report')

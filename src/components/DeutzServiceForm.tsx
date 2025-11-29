@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import toast from 'react-hot-toast';
 
 export default function DeutzServiceForm() {
   const [formData, setFormData] = useState({
@@ -46,15 +47,91 @@ export default function DeutzServiceForm() {
     acknowledged_by: '',
   });
 
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Form submitted:', formData);
-    alert('Form submitted (console log only for now)');
+    setIsLoading(true);
+    const loadingToastId = toast.loading('Submitting Service Report...');
+
+    const data = new FormData();
+    Object.entries(formData).forEach(([key, value]) => {
+      data.append(key, value);
+    });
+    if (selectedFile) {
+      data.append('attachments', selectedFile);
+    }
+
+    try {
+      const response = await fetch('/api/forms/deutz-service', {
+        method: 'POST',
+        body: data,
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Success:', result);
+        toast.success('Service Report submitted successfully!', { id: loadingToastId });
+        setFormData({
+            reporting_person_name: '',
+            telephone_fax: '',
+            report_date: '',
+            customer_name: '',
+            contact_person: '',
+            address: '',
+            email_address: '',
+            equipment_manufacturer: '',
+            equipment_model: '',
+            equipment_serial_no: '',
+            engine_model: '',
+            engine_serial_no: '',
+            alternator_brand_model: '',
+            alternator_serial_no: '',
+            location: '',
+            date_in_service: '',
+            rating: '',
+            revolution: '',
+            starting_voltage: '',
+            running_hours: '',
+            fuel_pump_serial_no: '',
+            fuel_pump_code: '',
+            lube_oil_type: '',
+            fuel_type: '',
+            cooling_water_additives: '',
+            date_failed: '',
+            turbo_model: '',
+            turbo_serial_no: '',
+            customer_complaint: '',
+            possible_cause: '',
+            observation: '',
+            findings: '',
+            action_taken: '',
+            recommendations: '',
+            summary_details: '',
+            within_coverage_period: 'No',
+            warrantable_failure: 'No',
+            service_technician: '',
+            approved_by: '',
+            acknowledged_by: '',
+        });
+        setSelectedFile(null);
+      } else {
+        const errorData = await response.json();
+        console.error('Error:', errorData);
+        toast.error(`Failed to submit report: ${errorData.error || 'Unknown error'}`, { id: loadingToastId });
+      }
+    } catch (error) {
+      console.error('Network error:', error);
+      toast.error('A network error occurred. Please try again.', { id: loadingToastId });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -191,13 +268,19 @@ export default function DeutzServiceForm() {
                             <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                         <div className="flex text-sm text-gray-600">
-                            <span className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
-                            <span>Upload a file</span>
-                            <input id="file-upload" name="file-upload" type="file" className="sr-only" multiple />
-                            </span>
+                            <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
+                              <span>Upload a file</span>
+                              <input id="file-upload" name="file-upload" type="file" className="sr-only" onChange={(e) => {
+                                if (e.target.files && e.target.files[0]) {
+                                  setSelectedFile(e.target.files[0]);
+                                }
+                              }} />
+                            </label>
                             <p className="pl-1">or drag and drop</p>
                         </div>
-                        <p className="text-xs text-gray-500">PNG, JPG, PDF up to 10MB</p>
+                        <p className="text-xs text-gray-500">
+                          {selectedFile ? `Selected: ${selectedFile.name}` : "PNG, JPG, PDF up to 10MB"}
+                        </p>
                         </div>
                     </div>
                 </div>
@@ -227,14 +310,21 @@ export default function DeutzServiceForm() {
         </div>
 
         <div className="flex justify-end pt-6 pb-12">
-            <button type="button" className="mr-4 bg-white text-gray-700 font-bold py-3 px-6 rounded-lg border border-gray-300 shadow-sm hover:bg-gray-50 transition duration-150">
+            <button type="button" className="mr-4 bg-white text-gray-700 font-bold py-3 px-6 rounded-lg border border-gray-300 shadow-sm hover:bg-gray-50 transition duration-150" disabled={isLoading}>
                 Cancel
             </button>
-            <button type="submit" className="bg-[#2B4C7E] hover:bg-[#1A2F4F] text-white font-bold py-3 px-10 rounded-lg shadow-md transition duration-150 flex items-center">
+            <button type="submit" className="bg-[#2B4C7E] hover:bg-[#1A2F4F] text-white font-bold py-3 px-10 rounded-lg shadow-md transition duration-150 flex items-center" disabled={isLoading}>
                 <span className="mr-2">Submit Service Report</span>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
+                {isLoading ? (
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                )}
             </button>
         </div>
       </form>
